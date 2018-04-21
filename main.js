@@ -17,12 +17,12 @@ function spr(name) {
 
 var level1 = 
 "xxxxxxxxxxxxxxxxxxxx\n" +
-"x.......xxx........x\n" +
-"x..x.x..xxx........x\n" +
-"x..xxxxxxxx..xx....x\n" +
-"x............xx.xx.x\n" +
-"x..$..xxxxx..xxxxxxx\n" +
-"x....@xxxxx..x.....x\n" +
+"x...xxxxxxx........x\n" +
+"x...>.xxxx.........x\n" +
+"x..@x..<xxx..xx....x\n" +
+"xxxxx.xxxxx..xx.xx.x\n" +
+"x...>........xxxxxxx\n" +
+"x..xxxxxxxx..x.....x\n" +
 "x.......xxx..x.....x\n" +
 "x..xx.....x..x.....x\n" +
 "x..xx..............x\n" +
@@ -32,6 +32,7 @@ var level_width;
 var level_height;
 var entities = [];
 var grid = [];
+var seen = {};
 var player;
 var camera = {
   x: 0,
@@ -53,8 +54,11 @@ function makeWorld(level) {
       if (c == 'x') {
         entities.push(makeEntity(x,y,'wall','wall'));
       }
-      if (c == '$') {
-        entities.push(makeEntity(x,y,'croc','croc'));
+      if (c == '<') {
+        entities.push(makeCroc(x, y, 'left'));
+      }
+      if (c == '>') {
+        entities.push(makeCroc(x, y, 'right'));
       }
       x++;
     }
@@ -113,6 +117,64 @@ function makeEntity(x, y, type, spr_name) {
   return p;
 }
 
+function makeCroc(x, y, direction) {
+  var p = makeEntity(x, y, 'croc', 'croc');
+  var LOS = 3;
+  p.direction = direction
+  p.angry = false
+  p.draw = () => {
+    drawSpriteAt('croc_' + p.direction, p.x, p.y);
+    for (var i = 0; i < p.maxhp; i++) {
+      drawSpriteAt('heart' + (i >= p.hp ? '_empty' : ''), p.x + 0.25*i, p.y+0.75);
+    }
+    if (p.angry) {
+      drawSpriteAt('angry', p.x, p.y);
+    }
+  };
+  p.patrolLength = Math.floor(Math.random()*4) + 1;
+  p.patrolCounter = 0;
+  p.maxhp = 2;
+  p.hp = 2;
+  p.damage = (dmg) => {
+    p.hp -= dmg;
+    if (p.hp <= 0) {
+      p.die();
+    }
+  };
+  p.die = () => {
+    entities = entities.filter(e => e != p);
+  };
+  p.step = () => {
+    var new_x = p.x + (p.direction == 'right' ? 1 : -1);
+    var g = grid.get(new_x, y);
+    if (!g) {
+      p.x = new_x;
+    } else if (g.type == 'wall') {
+      p.direction = p.direction == 'right' ? 'left' : 'right';
+      p.patrolCounter = 0;
+      return;
+    } else if (g.type == 'player') {
+      player.hp -= 1;
+    }
+    p.angry = false;
+    for (var i = 0; i < LOS; i++) {
+      var g = grid.get(p.x + i*(p.direction == 'right' ? 1 : -1), p.y);
+      if (!g) continue;
+      if (g.type == 'wall') break;
+      if (g.type == 'player') {
+        p.angry = true;
+        p.patrolCounter = 0;
+      }
+    }
+    p.patrolCounter++;
+    if (p.patrolCounter > p.patrolLength) {
+      p.direction = p.direction == 'right' ? 'left' : 'right';
+      p.patrolCounter = 0;
+    }
+  };
+  return p;
+}
+
 function canSeeCheck(x,y) {
   if (x < 0 || x >= level_width) return false;
   if (y < 0 || y >= level_height) return false;
@@ -158,6 +220,9 @@ function lineOfSight(e, LOS) {
 function makePlayer(x, y) {
   var p = makeEntity(x,y,'player','leon');
   var LOS = 3;
+  p.draw = () => {
+    drawSpriteAt('leon' + (p.trailing ? '_trailing' : ''), p.x, p.y);
+  };
   p.lineOfSight = () => {
     var los = lineOfSight(p, LOS);
     if (p.peeking) {
@@ -167,18 +232,24 @@ function makePlayer(x, y) {
     }
     return los;
   };
+  p.trailing = false;
   p.peeking = false;
   p.peeking_direction = [0,0];
   p.hp = 3;
   return p;
 }
 
-function handleInteraction(e) {
+function handleInteraction(e, direction) {
   if (e.type == 'wall') {
     return [player.x, player.y];
   }
   if (e.type == 'croc') {
-    player.hp -= 1;
+    console.log(e.direction, direction);
+    if ((e.direction == 'right' && direction[0] > 0) || (e.direction == 'left' && direction[0] < 0)) {
+      e.die();
+    } else {
+      e.damage(1);
+    }
   }
   return [player.x, player.y];
 }
@@ -191,6 +262,17 @@ function recomputeGrid() {
     }
     grid[e.x][e.y] = e;
   });
+  grid.get = function(x,y) {
+    return grid[x] && grid[x][y];
+  }
+}
+
+function processEntities() {
+  entities.forEach(e => {
+    if (e.step) {
+      e.step();
+    }
+  });
 }
 
 function drawBackground() {
@@ -202,19 +284,30 @@ function drawBackground() {
 }
 
 function drawEntities() {
+  var los = player.lineOfSight();
   entities.forEach(e => {
+    if (!((e.x+','+e.y) in los)) {
+      if (e.type == 'croc') {
+        return;
+      }
+    }
     e.draw();
   });
 }
 
 function drawFogOfWar() {
   var los = player.lineOfSight();
+  for (pos in los) {
+    seen[pos] = true;
+  }
   for (var i = -2; i < level_width+2; i++) {
     for (var j = -2; j < level_height+2; j++) {
       var x = camera.x + i;
       var y = camera.y + j;
-      if (!((x+','+y) in los)) {
+      if (!((x+','+y) in seen)) {
         drawSpriteAt('fog', x,y);
+      } else if (!((x+','+y) in los)) {
+        drawSpriteAt('fog_seen', x,y);
       }
     }
   }
@@ -258,7 +351,30 @@ function draw(delta) {
 }
 
 var K_P = 80;
+var K_SPACE = 32;
+var KEYS = {};
+
+function player_action(d) {
+  player.peeking_direction = d;
+
+  if (!player.peeking) {
+    var new_x = player.x + d[0];
+    var new_y = player.y + d[1];
+    var pos_after_interaction = [new_x, new_y];
+    entities.forEach(e => {
+      if (e.x == new_x && e.y == new_y) {
+        pos_after_interaction = handleInteraction(e, d);
+      }
+    });
+    player.x = pos_after_interaction[0];
+    player.y = pos_after_interaction[1];
+  }
+  recomputeGrid();
+}
+
 document.addEventListener('keydown', function(event) {
+  if (KEYS[event.keyCode]) return;
+  KEYS[event.keyCode] = true;
   var direction = {
     '37': [-1, 0],
     '38': [0, -1],
@@ -267,36 +383,31 @@ document.addEventListener('keydown', function(event) {
   };
   var k = event.keyCode;
   if (k in direction) {
-    player.peeking_direction = direction[k];
-
-    if (!player.peeking) {
-      var new_x = player.x + direction[k][0];
-      var new_y = player.y + direction[k][1];
-      var pos_after_interaction = [new_x, new_y];
-      entities.forEach(e => {
-        if (e.x == new_x && e.y == new_y) {
-          pos_after_interaction = handleInteraction(e);
-        }
-      });
-      player.x = pos_after_interaction[0];
-      player.y = pos_after_interaction[1];
+    if (!player.trailing) {
+      player_action(direction[k]);
+    }
+    processEntities();
+    recomputeGrid();
+    if (player.trailing) {
+      player_action(direction[k]);
     }
     update_camera();
-
-    recomputeGrid();
   }
   if (k == K_P) {
     player.peeking = true;
   }
+  if (k == K_SPACE) {
+    player.trailing = !player.trailing;
+  }
 });
 document.addEventListener('keyup', function(event) {
+  KEYS[event.keyCode] = false;
   var direction = {
     '37': [-1, 0],
     '38': [0, -1],
     '39': [1, 0],
     '40': [0, 1],
   };
-  var K_P = 80;
   var k = event.keyCode;
   if (k in direction) {
     var d = direction[k];
