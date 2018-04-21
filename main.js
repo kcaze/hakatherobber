@@ -163,18 +163,20 @@ function makeCroc(x, y, direction) {
   p.direction = direction
   p.angry = false
   p.draw = () => {
-    drawSpriteAt('croc_' + p.direction, p.x, p.y);
+    p.display_x += lerp(p.display_x, p.x, 0.5, 0.01);
+    p.display_y += lerp(p.display_y, p.y, 0.5, 0.01);
+    drawSpriteAt('croc_' + p.direction, p.display_x, p.display_y);
     for (var i = 0; i < p.hp; i++) {
-      drawSpriteAt('heart', p.x + 0.25*i, p.y+0.75);
+      drawSpriteAt('heart', p.display_x + 0.25*i, p.display_y+0.75);
     }
     if (p.angry) {
-      drawSpriteAt('angry', p.x, p.y);
+      drawSpriteAt('angry', p.display_x, p.display_y);
     }
   };
-  p.patrolLength = Math.floor(Math.random()*4) + 1;
+  p.patrolLength = 2;
   p.patrolCounter = 0;
-  p.maxhp = 2;
-  p.hp = 2;
+  p.maxhp = 3;
+  p.hp = 3;
   p.damage = (dmg) => {
     p.hp -= dmg;
     if (p.hp <= 0) {
@@ -184,6 +186,8 @@ function makeCroc(x, y, direction) {
   p.die = () => {
     entities = entities.filter(e => e != p);
   };
+  p.display_x = p.x;
+  p.display_y = p.y;
   p.step = () => {
     var new_x = p.x + (p.direction == 'right' ? 1 : -1);
     var g = grid.get(new_x, y);
@@ -261,7 +265,11 @@ function makePlayer(x, y) {
   var p = makeEntity(x,y,'player','leon');
   var LOS = 3;
   p.draw = () => {
-    drawSpriteAt('leon'+ (p.direction == 'right' ? '_right' : '_left'), p.x, p.y);
+    var px = p.x + 0.25 * (p.peeking ? p.peeking_direction[0] : 0);
+    var py = p.y + 0.25 * (p.peeking ? p.peeking_direction[1] : 0);
+    p.display_x += lerp(p.display_x, px, 0.5, 0.01);
+    p.display_y += lerp(p.display_y, py, 0.5, 0.01);
+    drawSpriteAt('leon'+ (p.direction == 'right' ? '_right' : '_left'), p.display_x, p.display_y);
     //drawSpriteAt('leon' + (p.trailing ? '_trailing' : ''), p.x, p.y);
   };
   p.lineOfSight = () => {
@@ -278,6 +286,8 @@ function makePlayer(x, y) {
   p.peeking = false;
   p.peeking_direction = [0,0];
   p.hp = 3;
+  p.display_x = p.x;
+  p.display_y = p.y;
   return p;
 }
 
@@ -362,27 +372,21 @@ function drawHUD() {
 }
 
 function update(delta) {
-  var cdx = camera.x - camera.display_x;
-  var cdy = camera.y - camera.display_y;
-  var dx = CAMERA_FOLLOW_FACTOR * cdx;
-  var dy = CAMERA_FOLLOW_FACTOR * cdy;
-  if (Math.abs(dx) != 0 && Math.abs(dx) < CAMERA_MIN_FOLLOW) {
-    dx /= Math.abs(dx);
-    dx *= CAMERA_MIN_FOLLOW;
+  camera.display_x += lerp(camera.display_x, camera.x, CAMERA_FOLLOW_FACTOR, CAMERA_MIN_FOLLOW);
+  camera.display_y += lerp(camera.display_y, camera.y, CAMERA_FOLLOW_FACTOR, CAMERA_MIN_FOLLOW);
+}
+
+function lerp(a, b, factor, min) {
+  var c = b - a;
+  var d = factor*c;
+  if (Math.abs(d) != 0 && Math.abs(d) < min) {
+    d /= Math.abs(d);
+    d *= min;
   }
-  if (Math.abs(dy) != 0 && Math.abs(dy) < CAMERA_MIN_FOLLOW) {
-    dy /= Math.abs(dy);
-    dy *= CAMERA_MIN_FOLLOW;
-  }
-  if (Math.abs(dx) > Math.abs(cdx)) {
-    camera.display_x = camera.x;
+  if (Math.abs(d) > Math.abs(c)) {
+    return c;
   } else {
-    camera.display_x += dx;
-  }
-  if (Math.abs(dy) > Math.abs(cdy)) {
-    camera.display_y = camera.y;
-  } else {
-    camera.display_y += dy;
+    return d;
   }
 }
 
