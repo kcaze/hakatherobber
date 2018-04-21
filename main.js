@@ -21,7 +21,7 @@ var level1 =
 "x..x.x..xxx........x\n" +
 "x..xxxxxxxx..xx....x\n" +
 "x............xx.xx.x\n" +
-"x.....xxxxx..xxxxxxx\n" +
+"x..$..xxxxx..xxxxxxx\n" +
 "x....@xxxxx..x.....x\n" +
 "x.......xxx..x.....x\n" +
 "x..xx.....x..x.....x\n" +
@@ -52,6 +52,9 @@ function makeWorld(level) {
       }
       if (c == 'x') {
         entities.push(makeEntity(x,y,'wall','wall'));
+      }
+      if (c == '$') {
+        entities.push(makeEntity(x,y,'croc','croc'));
       }
       x++;
     }
@@ -156,14 +159,26 @@ function makePlayer(x, y) {
   var p = makeEntity(x,y,'player','leon');
   var LOS = 3;
   p.lineOfSight = () => {
-    return lineOfSight(p, LOS);
+    var los = lineOfSight(p, LOS);
+    if (p.peeking) {
+      for (pos in lineOfSight({x: p.x+p.peeking_direction[0], y:p.y+p.peeking_direction[1]}, LOS)) {
+        los[pos] = true;
+      }
+    }
+    return los;
   };
+  p.peeking = false;
+  p.peeking_direction = [0,0];
+  p.hp = 3;
   return p;
 }
 
 function handleInteraction(e) {
   if (e.type == 'wall') {
     return [player.x, player.y];
+  }
+  if (e.type == 'croc') {
+    player.hp -= 1;
   }
   return [player.x, player.y];
 }
@@ -205,6 +220,10 @@ function drawFogOfWar() {
   }
 }
 
+function drawHUD() {
+  drawSpriteAt("health"+player.hp, camera.display_x+0.125, camera.display_y-0.125);
+}
+
 function update(delta) {
   var cdx = camera.x - camera.display_x;
   var cdy = camera.y - camera.display_y;
@@ -235,8 +254,10 @@ function draw(delta) {
   drawBackground();
   drawEntities();
   drawFogOfWar();
+  drawHUD();
 }
 
+var K_P = 80;
 document.addEventListener('keydown', function(event) {
   var direction = {
     '37': [-1, 0],
@@ -246,19 +267,46 @@ document.addEventListener('keydown', function(event) {
   };
   var k = event.keyCode;
   if (k in direction) {
-    var new_x = player.x + direction[k][0];
-    var new_y = player.y + direction[k][1];
-    var pos_after_interaction = [new_x, new_y];
-    entities.forEach(e => {
-      if (e.x == new_x && e.y == new_y) {
-        pos_after_interaction = handleInteraction(e);
-      }
-    });
-    player.x = pos_after_interaction[0];
-    player.y = pos_after_interaction[1];
+    player.peeking_direction = direction[k];
+
+    if (!player.peeking) {
+      var new_x = player.x + direction[k][0];
+      var new_y = player.y + direction[k][1];
+      var pos_after_interaction = [new_x, new_y];
+      entities.forEach(e => {
+        if (e.x == new_x && e.y == new_y) {
+          pos_after_interaction = handleInteraction(e);
+        }
+      });
+      player.x = pos_after_interaction[0];
+      player.y = pos_after_interaction[1];
+    }
     update_camera();
 
     recomputeGrid();
+  }
+  if (k == K_P) {
+    player.peeking = true;
+  }
+});
+document.addEventListener('keyup', function(event) {
+  var direction = {
+    '37': [-1, 0],
+    '38': [0, -1],
+    '39': [1, 0],
+    '40': [0, 1],
+  };
+  var K_P = 80;
+  var k = event.keyCode;
+  if (k in direction) {
+    var d = direction[k];
+    var pd = player.peeking_direction;
+    if (pd[0] == d[0] && pd[1] == d[1]) {
+      player.peeking_direction = [0, 0];
+    }
+  }
+  if (k == K_P) {
+    player.peeking = false;
   }
 });
 
