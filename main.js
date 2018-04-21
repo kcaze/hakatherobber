@@ -15,11 +15,6 @@ function spr(name) {
   return document.getElementById('spr_' + name);
 }
 
-
-function spr(name) {
-  return document.getElementById('spr_' + name);
-}
-
 var level1 = 
 "xxxxxxxxxxxxxxxxxxxx\n" +
 "x.......xxx........x\n" +
@@ -36,6 +31,7 @@ var level1 =
 var level_width;
 var level_height;
 var entities = [];
+var grid = [];
 var player;
 var camera = {
   x: 0,
@@ -50,7 +46,7 @@ function makeWorld(level) {
     for (var i = 0; i < s.length; i++) {
       var c = s[i];
       if (c == '@') {
-        player = makeEntity(x,y,'player','leon');
+        player = makePlayer(x, y);
         setup_camera();
         entities.push(player);
       }
@@ -62,6 +58,7 @@ function makeWorld(level) {
     level_width = s.length;
   });
   level_height = w.length;
+  recomputeGrid();
 }
 
 function setup_camera() {
@@ -113,11 +110,72 @@ function makeEntity(x, y, type, spr_name) {
   return p;
 }
 
+function canSeeCheck(x,y) {
+  if (x < 0 || x >= level_width) return false;
+  if (y < 0 || y >= level_height) return false;
+  if (!grid[x] || !grid[x][y]) return true;
+  if (grid[x][y].type == 'wall') return false;
+  return true;
+}
+
+function lineOfSight(e, LOS) {
+    var los = {};
+    los[e.x+','+e.y] = true;
+    for (var dx = -LOS; dx <= LOS; dx++) {
+      for (var dy = -LOS; dy <= LOS; dy++) {
+        // Bresenham's algorithm check.
+        var canSee = true;
+        var pos = [e.x,e.y];
+        var w = dx == 0 ? 0 : dx/Math.abs(dx);
+        var h = dy == 0 ? 0 : dy/Math.abs(dy);
+        while (pos[0] != e.x+dx || pos[1] != e.y+dy) {
+          if (!canSeeCheck(pos[0], pos[1])) {
+            canSee = false;
+            break;
+          }
+          var v1 = Math.abs((pos[0]+w-e.x)*dy - ((pos[1]-e.y)*dx));
+          var v2 = Math.abs((pos[0]-e.x)*dy - ((pos[1]+h-e.y)*dx));
+          if (v1 < v2) {
+            pos[0] += w;
+          } else if (v2 < v1) {
+            pos[1] += h;
+          } else {
+            pos[0] += w;
+            pos[1] += h;
+          }
+        }
+        if (canSee) {
+          los[(e.x+dx)+','+(e.y+dy)] = true;
+        }
+      }
+    }
+    return los;
+}
+
+function makePlayer(x, y) {
+  var p = makeEntity(x,y,'player','leon');
+  var LOS = 3;
+  p.lineOfSight = () => {
+    return lineOfSight(p, LOS);
+  };
+  return p;
+}
+
 function handleInteraction(e) {
   if (e.type == 'wall') {
     return [player.x, player.y];
   }
   return [player.x, player.y];
+}
+
+function recomputeGrid() {
+  grid = [];
+  entities.forEach(e => {
+    if (!grid[e.x]) {
+      grid[e.x] = [];
+    }
+    grid[e.x][e.y] = e;
+  });
 }
 
 function drawBackground() {
@@ -132,6 +190,19 @@ function drawEntities() {
   entities.forEach(e => {
     e.draw();
   });
+}
+
+function drawFogOfWar() {
+  var los = player.lineOfSight();
+  for (var i = -2; i < level_width+2; i++) {
+    for (var j = -2; j < level_height+2; j++) {
+      var x = camera.x + i;
+      var y = camera.y + j;
+      if (!((x+','+y) in los)) {
+        drawSpriteAt('fog', x,y);
+      }
+    }
+  }
 }
 
 function update(delta) {
@@ -163,6 +234,7 @@ function draw(delta) {
   context.fillRect(0,0,WIDTH,HEIGHT);
   drawBackground();
   drawEntities();
+  drawFogOfWar();
 }
 
 document.addEventListener('keydown', function(event) {
@@ -185,6 +257,8 @@ document.addEventListener('keydown', function(event) {
     player.x = pos_after_interaction[0];
     player.y = pos_after_interaction[1];
     update_camera();
+
+    recomputeGrid();
   }
 });
 
