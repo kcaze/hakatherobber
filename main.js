@@ -52,7 +52,7 @@ function makeWorld(level) {
         entities.push(player);
       }
       if (c == 'x') {
-        entities.push(makeEntity(x,y,'wall','wall'));
+        entities.push(makeWall(x,y));
       }
       if (c == '<') {
         entities.push(makeCroc(x, y, 'left'));
@@ -117,6 +117,46 @@ function makeEntity(x, y, type, spr_name) {
   return p;
 }
 
+function makeWall(x, y) {
+  var p = makeEntity(x, y, 'wall', 'wall');
+  p.draw = () => {
+    //bitmask l = 1, u = 2, r = 4, d = 8
+    var neighbors = 0;
+    if (p.x == 0 || (grid.get(p.x-1,p.y) && grid.get(p.x-1,p.y).type == 'wall')) {
+      neighbors += 1;
+    }
+    if (p.y == 0 || (grid.get(p.x,p.y-1) && grid.get(p.x,p.y-1).type == 'wall')) {
+      neighbors += 2;
+    }
+    if (p.x == level_width-1 || (grid.get(p.x+1,p.y) && grid.get(p.x+1,p.y).type == 'wall')) {
+      neighbors += 4;
+    }
+    if (p.y == level_height-1 || (grid.get(p.x,p.y+1) && grid.get(p.x,p.y+1).type == 'wall')) {
+      neighbors += 8;
+    }
+    var sprites = [
+      'wall_nsew',
+      'wall_nes',
+      'wall_wse',
+      'wall_se',
+      'wall_nws',
+      'wall_ns',
+      'wall_sw',
+      'wall_s',
+      'wall_wne',
+      'wall_ne',
+      'wall_we',
+      'wall_e',
+      'wall_nw',
+      'wall_n',
+      'wall_w',
+      'wall',
+    ];
+    drawSpriteAt(sprites[neighbors], p.x, p.y);
+  };
+  return p;
+}
+
 function makeCroc(x, y, direction) {
   var p = makeEntity(x, y, 'croc', 'croc');
   var LOS = 3;
@@ -124,8 +164,8 @@ function makeCroc(x, y, direction) {
   p.angry = false
   p.draw = () => {
     drawSpriteAt('croc_' + p.direction, p.x, p.y);
-    for (var i = 0; i < p.maxhp; i++) {
-      drawSpriteAt('heart' + (i >= p.hp ? '_empty' : ''), p.x + 0.25*i, p.y+0.75);
+    for (var i = 0; i < p.hp; i++) {
+      drawSpriteAt('heart', p.x + 0.25*i, p.y+0.75);
     }
     if (p.angry) {
       drawSpriteAt('angry', p.x, p.y);
@@ -221,7 +261,8 @@ function makePlayer(x, y) {
   var p = makeEntity(x,y,'player','leon');
   var LOS = 3;
   p.draw = () => {
-    drawSpriteAt('leon' + (p.trailing ? '_trailing' : ''), p.x, p.y);
+    drawSpriteAt('leon'+ (p.direction == 'right' ? '_right' : '_left'), p.x, p.y);
+    //drawSpriteAt('leon' + (p.trailing ? '_trailing' : ''), p.x, p.y);
   };
   p.lineOfSight = () => {
     var los = lineOfSight(p, LOS);
@@ -232,6 +273,7 @@ function makePlayer(x, y) {
     }
     return los;
   };
+  p.direction = 'right';
   p.trailing = false;
   p.peeking = false;
   p.peeking_direction = [0,0];
@@ -314,7 +356,9 @@ function drawFogOfWar() {
 }
 
 function drawHUD() {
-  drawSpriteAt("health"+player.hp, camera.display_x+0.125, camera.display_y-0.125);
+  for (var i = 0; i < player.hp; i++) {
+    drawSpriteAt("heart", camera.display_x+0.125+i*0.25, camera.display_y-0.125);
+  }
 }
 
 function update(delta) {
@@ -355,6 +399,12 @@ var K_SPACE = 32;
 var KEYS = {};
 
 function player_action(d) {
+  if (d[0] > 0) {
+    player.direction = 'right';
+  } else if (d[0] < 0) {
+    player.direction = 'left';
+  }
+
   player.peeking_direction = d;
 
   if (!player.peeking) {
