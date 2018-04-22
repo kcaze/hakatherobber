@@ -8,6 +8,7 @@ function generateLevel(width, height) {
     }
   }
 
+  addShop(arr);
   while (addNewRoom(arr));
 
   addPassages(arr);
@@ -28,7 +29,7 @@ function generateLevel(width, height) {
 
 
   // Add objects
-  addObjects(arr);
+  //addObjects(arr);
 
 
   // print out level
@@ -134,7 +135,7 @@ function generateFirstRoom(width, height) {
       }
     }
     var loc = playerLocations[bellCurve(0, playerLocations.length - 1)];
-    arr[loc[1]][loc[0]] = '@';
+    //arr[loc[1]][loc[0]] = '@';
   }
 
   return {arr: arr, size: regions[maxRegionI]};
@@ -160,7 +161,7 @@ function addNewRoom(arr) {
           if (room[ry][rx] == 'x') continue;
           if (room[ry][rx] == '.' && (y+ry >= h  || x+rx >= w)) { failed = true; continue;}
           if (y+ry >= h || x + rx >= w) continue;
-          if (arr[y + ry][x + rx] == '.') failed = true;
+          if (arr[y + ry][x + rx] != 'x') failed = true;
         }
       }
       if (!failed) {
@@ -470,7 +471,7 @@ function addObjects(arr) {
 
   for (var y = 0; y < height; y++) {
     for (var x = 0; x < width; x++) {
-      if (arr[y][x] == 'x' || arr[y][x] == '@') continue;
+      if (arr[y][x] != '.'  && arr[y][x] != '*') continue;
       var reverseDirMap = {
         '1,0': 'r',
         '-1,0': 'l',
@@ -524,5 +525,35 @@ function addObjects(arr) {
         }
       }
     }
+  }
+}
+
+function addShop(arr) {
+  var w = arr[0].length;
+  var h = arr.length;
+  while (true) {
+    var x = Math.floor(Math.random()*w);
+    var y = Math.floor(Math.random()*h);
+    var canPutShop = true;
+    for (var i = -4; i < 4; i++) {
+      for (var j = -4; j < 4; j++) {
+        var xx = x + i;
+        var yy = y + i;
+        if (isInvalid(xx,yy,w,h)) {
+          canPutShop = false;
+          continue;
+        }
+        if (arr[yy][xx] != 'x') {
+          canPutShop = false;
+        }
+      }
+    }
+    if (!canPutShop) continue;
+    arr[y-2][x-2] = '&'; arr[y-2][x-1] = '&'; arr[y-2][x] = '&'; arr[y-2][x+1] = '&';arr[y-2][x+2] = '&';
+    arr[y-1][x-2] = '&'; arr[y-1][x-1] = '&'; arr[y-1][x] = '&'; arr[y-1][x+1] = '&';arr[y-1][x+2] = '&';
+    arr[y][x-2] = '&'; arr[y][x-1] = 'b'; arr[y][x] = 'k'; arr[y][x+1] = 'p'; arr[y][x+2] = '&';
+    arr[y+1][x-2] = '&'; arr[y+1][x-1] = '&'; arr[y+1][x] = '&'; arr[y+1][x+1] = '&'; arr[y+1][x+2] = '&';
+    arr[y+2][x-2] = '@'; arr[y+2][x-1] = '&'; arr[y+2][x] = '&'; arr[y+2][x+1] = '&';arr[y+2][x+2] = '&';
+    return;
   }
 }

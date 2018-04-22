@@ -89,6 +89,15 @@ function level() {
         if (c == 'd') {
           entities.push(makeEye(x, y, 'down'));
         }
+        if (c == 'b') {
+          entities.push(makeBomb(x, y));
+        }
+        if (c == 'p') {
+          entities.push(makePotion(x, y));
+        }
+        if (c == 'k') {
+          entities.push(makeShuriken(x, y));
+        }
         if (c == 'g') {
           entities.push(makeGrave(x, y));
         }
@@ -189,6 +198,69 @@ function level() {
       ];
       drawSpriteAt(sprites[neighbors], p.x, p.y);
     };
+    return p;
+  }
+
+  function makeBomb(x, y) {
+    var p = makeEntity(x, y, 'bomb', 'bomb');
+    p.draw = () => {
+      drawSpriteAt('bomb', p.x, p.y);
+      if (!p.sold) {
+        var fx = TILE_SIZE*(p.x-camera.display_x+0.9);
+        var fy = TILE_SIZE*(p.y-camera.display_y+0.95)+BORDER_H;
+        context.textAlign = "center";
+        context.font = '32px charm';
+        context.lineWidth = 4;
+        context.strokeStyle = 'black';
+        context.strokeText(p.price, fx, fy);
+        context.fillStyle = 'white';
+        context.fillText(p.price, fx, fy);
+      }
+    };
+    p.sold = false;
+    p.price = bellCurve(10, 15);
+    return p;
+  }
+
+  function makePotion(x, y) {
+    var p = makeEntity(x, y, 'potion', 'potion');
+    p.draw = () => {
+      drawSpriteAt('potion', p.x, p.y);
+      if (!p.sold) {
+        var fx = TILE_SIZE*(p.x-camera.display_x+0.9);
+        var fy = TILE_SIZE*(p.y-camera.display_y+0.95)+BORDER_H;
+        context.textAlign = "center";
+        context.font = '32px charm';
+        context.lineWidth = 4;
+        context.strokeStyle = 'black';
+        context.strokeText(p.price, fx, fy);
+        context.fillStyle = 'white';
+        context.fillText(p.price, fx, fy);
+      }
+    };
+    p.sold = false;
+    p.price = bellCurve(20, 50);
+    return p;
+  }
+
+  function makeShuriken(x, y) {
+    var p = makeEntity(x, y, 'shuriken', 'shuriken');
+    p.draw = () => {
+      drawSpriteAt('shuriken', p.x, p.y);
+      if (!p.sold) {
+        var fx = TILE_SIZE*(p.x-camera.display_x+0.9);
+        var fy = TILE_SIZE*(p.y-camera.display_y+0.95)+BORDER_H;
+        context.textAlign = "center";
+        context.font = '32px charm';
+        context.lineWidth = 4;
+        context.strokeStyle = 'black';
+        context.strokeText(p.price, fx, fy);
+        context.fillStyle = 'white';
+        context.fillText(p.price, fx, fy);
+      }
+    };
+    p.sold = false;
+    p.price = bellCurve(15, 30);
     return p;
   }
 
@@ -663,7 +735,8 @@ function level() {
     p.peeking = false;
     p.peeking_direction = [0,0];
     p.hp = 3;
-    p.gold = 0;
+    p.gold = 1000;
+    p.item = null;
     p.display_x = p.x;
     p.display_y = p.y;
     return p;
@@ -674,6 +747,8 @@ function level() {
       return [player.x, player.y];
     }
     if (e.type == 'croc') {
+      player.display_x += 2*direction[0];
+      player.display_y += 2*direction[1];
       if ((e.direction == 'right' && direction[0] > 0) || (e.direction == 'left' && direction[0] < 0)) {
         e.die();
       } else {
@@ -681,6 +756,8 @@ function level() {
       }
     }
     if (e.type == 'vert') {
+      player.display_x += 2*direction[0];
+      player.display_y += 2*direction[1];
       if ((e.direction == 'up' && direction[1] < 0) || (e.direction == 'down' && direction[1] > 0)) {
         e.die();
       } else {
@@ -688,6 +765,8 @@ function level() {
       }
     }
     if (e.type == 'eye') {
+      player.display_x += 2*direction[0];
+      player.display_y += 2*direction[1];
       if ((e.direction == 'up' && direction[1] < 0) || (e.direction == 'down' && direction[1] > 0) || (e.direction == 'right' && direction[0] > 0) || (e.direction == 'left' && direction[0] < 0)) {
         e.die();
       } else {
@@ -695,12 +774,33 @@ function level() {
       }
     }
     if (e.type == 'grave') {
+      player.display_x += 2*direction[0];
+      player.display_y += 2*direction[1];
       e.crack();
     }
     if (e.type == 'money') {
       player.gold += e.amount;
       entities = entities.filter(ent => ent != e);
       return [player.x + direction[0], player.y + direction[1]];
+    }
+    if (e.type == 'shuriken' || e.type == 'bomb' || e.type == 'potion') {
+      console.log(e);
+      if (!e.sold && player.gold >= e.price) {
+        e.sold = true;
+        player.gold -= e.price;
+      }
+      if (e.sold) {
+        if (player.item != null) {
+          player.item.x = e.x;
+          player.item.y = e.y;
+          player.item.display_x = e.x;
+          player.item.display_y = e.y;
+          entities.push(player.item);
+        }
+        player.item = e;
+        entities = entities.filter(ent => ent != e);
+        return [player.x + direction[0], player.y + direction[1]];
+      }
     }
     return [player.x, player.y];
   }
@@ -792,6 +892,9 @@ function level() {
     context.strokeText(item, 8, 128);
     context.fillStyle = 'white';
     context.fillText(item, 8, 128);
+    if (player.item != null) {
+      drawSpriteAt(player.item.type + "_small", camera.display_x + 0.7, camera.display_y + 1.25);
+    }
 
     context.textAlign = "right";
     msg = "Hold shift to peek";
