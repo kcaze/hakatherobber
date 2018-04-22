@@ -883,7 +883,7 @@ document.addEventListener('keyup', function(event) {
   }
 });
 
-makeWorld(level1);
+makeWorld(generateLevel(30, 30));
 
 var prevTime = performance.now();
 function loop(t) {
