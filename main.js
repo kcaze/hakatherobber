@@ -195,18 +195,25 @@ function makeVert(x, y, direction) {
   p.maxhp = 5;
   p.hp = 5;
   p.step = () => {
-    var new_y = p.y + (p.direction == 'down' ? 1 : -1);
-    var g = grid.get(p.x, new_y);
-    if (!g) {
-      if (p.patrolCounter != p.patrolLength) {
-        p.y = new_y;
+    function move() {
+      var new_y = p.y + (p.direction == 'down' ? 1 : -1);
+      var g = grid.get(p.x, new_y);
+      if (!g) {
+        if (p.patrolCounter != p.patrolLength) {
+          p.y = new_y;
+        }
+        return false;
+      } else if (g.type == 'player') {
+        player.damage(1);
+        return true;
+      } else {
+        p.direction = p.direction == 'down' ? 'up' : 'down';
+        p.patrolCounter = -1;
+        return false;
       }
-    } else if (g.type == 'player') {
-      player.damage(1);
-    } else {
-      p.direction = p.direction == 'down' ? 'up' : 'down';
-      p.patrolCounter = 0;
-      return;
+    }
+    if (!move() && p.angry) {
+      move();
     }
     p.angry = false;
     for (var i = 0; i < LOS; i++) {
@@ -257,14 +264,21 @@ function makeGrave(x, y) {
     var r = Math.random();
     if (r < 0.8) {
       return () => makeMoney(p.x, p.y, Math.ceil(10*Math.random()));
-    } else {
+    } else if (r < 0.85) {
       return () => makeVert(x,y,'down');
+    } else {
+      return () => makeCroc(x,y,'down');
     }
   })();
   p.crack = () => {
-    var e = p.entityInside();
-    if (e) entities.push(p.entityInside());
-    entities = entities.filter(e => e != p);
+    p.cracked = true;
+  };
+  p.update = () => {
+    if (p.cracked) {
+      var e = p.entityInside();
+      if (e) entities.push(p.entityInside());
+      entities = entities.filter(e => e != p);
+    }
   };
   return p;
 }
@@ -299,18 +313,26 @@ function makeCroc(x, y, direction) {
   p.display_x = p.x;
   p.display_y = p.y;
   p.step = () => {
-    var new_x = p.x + (p.direction == 'right' ? 1 : -1);
-    var g = grid.get(new_x, p.y);
-    if (!g) {
-      if (p.patrolCounter != p.patrolLength) {
-        p.x = new_x;
+    function move() {
+      var new_x = p.x + (p.direction == 'right' ? 1 : -1);
+      var g = grid.get(new_x, p.y);
+      if (!g) {
+        if (p.patrolCounter != p.patrolLength) {
+          p.x = new_x;
+        }
+        return false;
+      } else if (g.type == 'player') {
+        player.damage(1);
+        return true;
+      } else {
+        p.direction = p.direction == 'right' ? 'left' : 'right';
+        p.patrolCounter = -1;
+        return true;
       }
-    } else if (g.type == 'player') {
-      player.damage(1);
-    } else {
-      p.direction = p.direction == 'right' ? 'left' : 'right';
-      p.patrolCounter = 0;
-      return;
+    };
+    // Move's twice if angry, but not if it already attacked the player
+    if (!move() && p.angry) {
+      move()
     }
     p.angry = false;
     for (var i = 0; i < LOS; i++) {
@@ -385,8 +407,7 @@ function makePlayer(x, y) {
     var py = p.y + 0.25 * (p.peeking ? p.peeking_direction[1] : 0);
     p.display_x += lerp(p.display_x, px, 0.5, 0.01);
     p.display_y += lerp(p.display_y, py, 0.5, 0.01);
-    drawSpriteAt('leon'+ (p.direction == 'right' ? '_right' : '_left'), p.display_x, p.display_y);
-    //drawSpriteAt('leon' + (p.trailing ? '_trailing' : ''), p.x, p.y);
+    drawSpriteAt('leon'+ (p.direction == 'right' ? '_right' : '_left') + (p.trailing ? "_trailing" : ""), p.display_x, p.display_y);
   };
   p.damage = (dmg) => {
     p.hp -= dmg;
