@@ -72,8 +72,11 @@ function makeWorld(level) {
 }
 
 function setup_camera() {
+  camera.screenshake = 0;
   camera.x = player.x - Math.floor(WINDOW_W/2);
   camera.y = player.y - Math.floor(WINDOW_H/2);
+  camera.pre_display_x = camera.x;
+  camera.pre_display_y = camera.y;
   camera.display_x = camera.x;
   camera.display_y = camera.y;
 }
@@ -199,7 +202,7 @@ function makeVert(x, y, direction) {
         p.y = new_y;
       }
     } else if (g.type == 'player') {
-      player.hp -= 1;
+      player.damage(1);
     } else {
       p.direction = p.direction == 'down' ? 'up' : 'down';
       p.patrolCounter = 0;
@@ -248,6 +251,24 @@ function makeMoney(x, y, amount) {
   return p;
 }
 
+function makeGrave(x, y) {
+  var p = makeEntity(x, y, 'grave', 'grave');
+  p.entityInside = (() => {
+    var r = Math.random();
+    if (r < 0.8) {
+      return () => makeMoney(p.x, p.y, Math.ceil(10*Math.random()));
+    } else {
+      return () => makeVert(x,y,'down');
+    }
+  })();
+  p.crack = () => {
+    var e = p.entityInside();
+    if (e) entities.push(p.entityInside());
+    entities = entities.filter(e => e != p);
+  };
+  return p;
+}
+
 function makeCroc(x, y, direction) {
   var p = makeEntity(x, y, 'croc', 'croc');
   var LOS = 3;
@@ -285,7 +306,7 @@ function makeCroc(x, y, direction) {
         p.x = new_x;
       }
     } else if (g.type == 'player') {
-      player.hp -= 1;
+      player.damage(1);
     } else {
       p.direction = p.direction == 'right' ? 'left' : 'right';
       p.patrolCounter = 0;
@@ -367,6 +388,10 @@ function makePlayer(x, y) {
     drawSpriteAt('leon'+ (p.direction == 'right' ? '_right' : '_left'), p.display_x, p.display_y);
     //drawSpriteAt('leon' + (p.trailing ? '_trailing' : ''), p.x, p.y);
   };
+  p.damage = (dmg) => {
+    p.hp -= dmg;
+    camera.screenshake = 1;
+  };
   p.lineOfSight = () => {
     var los = lineOfSight(p, LOS);
     if (p.peeking) {
@@ -404,6 +429,9 @@ function handleInteraction(e, direction) {
     } else {
       e.damage(1);
     }
+  }
+  if (e.type == 'grave') {
+    e.crack();
   }
   if (e.type == 'money') {
     player.gold += e.amount;
@@ -494,8 +522,11 @@ function drawHUD() {
 }
 
 function update(delta) {
-  camera.display_x += lerp(camera.display_x, camera.x, CAMERA_FOLLOW_FACTOR, CAMERA_MIN_FOLLOW);
-  camera.display_y += lerp(camera.display_y, camera.y, CAMERA_FOLLOW_FACTOR, CAMERA_MIN_FOLLOW);
+  camera.screenshake = Math.max(0.0, camera.screenshake - 4*delta/1000.0);
+  camera.pre_display_x += lerp(camera.pre_display_x, camera.x, CAMERA_FOLLOW_FACTOR, CAMERA_MIN_FOLLOW);
+  camera.pre_display_y += lerp(camera.pre_display_y, camera.y, CAMERA_FOLLOW_FACTOR, CAMERA_MIN_FOLLOW);
+  camera.display_x = camera.pre_display_x + (Math.random() - 0.5) * camera.screenshake * 0.5;
+  camera.display_y = camera.pre_display_y + (Math.random() - 0.5) * camera.screenshake * 0.5;
   entities.forEach(e => {
     if (e.update) {
       e.update();
@@ -615,7 +646,7 @@ function loop(t) {
   window.requestAnimationFrame(loop);
 }
 entities.push(makeMoney(1,1,10));
-entities.push(makeEntity(2,1,"grave","grave"));
+entities.push(makeGrave(2,1));
 /*entities.push(makeEntity(3,1,"healing_potion","healing_potion"));
 entities.push(makeEntity(2,2,"poison_potion","poison_potion"));
 entities.push(makeEntity(3,2,"invisibility_potion","invisibility_potion"));*/
