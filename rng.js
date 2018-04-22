@@ -29,7 +29,7 @@ function generateLevel(width, height) {
 
 
   // Add objects
-  //addObjects(arr);
+  addObjects(arr);
 
 
   // print out level

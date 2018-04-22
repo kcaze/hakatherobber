@@ -120,16 +120,16 @@ function level() {
   }
 
   function update_camera() {
-    if (player.x - camera.x < WINDOW_W/2 - CAMERA_BOUNDARY_W) {
+    while (player.x - camera.x < WINDOW_W/2 - CAMERA_BOUNDARY_W) {
       camera.x -= 1;
     }
-    if (player.x - camera.x > WINDOW_W/2 + CAMERA_BOUNDARY_W) {
+    while (player.x - camera.x > WINDOW_W/2 + CAMERA_BOUNDARY_W) {
       camera.x += 1;
     }
-    if (player.y - camera.y < WINDOW_H/2 - CAMERA_BOUNDARY_H) {
+    while (player.y - camera.y < WINDOW_H/2 - CAMERA_BOUNDARY_H) {
       camera.y -= 1;
     }
-    if (player.y - camera.y > WINDOW_H/2 + CAMERA_BOUNDARY_H) {
+    while (player.y - camera.y > WINDOW_H/2 + CAMERA_BOUNDARY_H) {
       camera.y += 1;
     }
   }
@@ -344,7 +344,7 @@ function level() {
         var g = grid.get(p.x, p.y + i*(p.direction == 'down' ? 1 : -1));
         if (!g) continue;
         if (g.type == 'wall' || g.type == 'grave') break;
-        if (g.type == 'player') {
+        if (g.type == 'player' && g.ivsb == 0) {
           p.angry = true;
           p.patrolCounter = 0;
         }
@@ -519,7 +519,7 @@ function level() {
           var g = grid.get(p.x + i*(p.direction == 'right' ? 1 : -1), p.y);
           if (!g) continue;
           if (isLosBlocking(g)) break;
-          if (g.type == 'player') {
+          if (g.type == 'player' && g.ivsb == 0) {
             p.angry = true;
             p.patrolCounter = 0;
           }
@@ -600,14 +600,14 @@ function level() {
           '0,1':'down',
         }
         var dir = [Math.sign(pdx), Math.sign(pdy)];
-        var canSeePlayer = true;
+        var canSeePlayer = player.ivsb == 0;
         for (var i = 1; i < (Math.abs(pdx)+Math.abs(pdy)); i++) {
           var g = grid.get(p.x+i*dir[0], p.y+i*dir[1]);
           if (g && isLosBlocking(g)) {
             canSeePlayer = false;
             break;
           }
-          if (g && g.type == 'player') {
+          if (g && g.type == 'player' && g.ivsb == 0) {
             break;
           }
         }
@@ -635,7 +635,7 @@ function level() {
         if (g && isLosBlocking(g)) {
           break;
         }
-        if (g && g.type == 'player') {
+        if (g && g.type == 'player' && g.ivsb == 0) {
           p.angry = true;
           break;
         }
@@ -707,12 +707,17 @@ function level() {
   function makePlayer(x, y) {
     var p = makeEntity(x,y,'player','leon');
     var LOS = 3;
+    p.ivsb = 0;
     p.draw = () => {
       var px = p.x + 0.25 * (p.peeking ? p.peeking_direction[0] : 0);
       var py = p.y + 0.25 * (p.peeking ? p.peeking_direction[1] : 0);
       p.display_x += lerp(p.display_x, px, 0.5, 0.01);
       p.display_y += lerp(p.display_y, py, 0.5, 0.01);
+      if (p.ivsb > 0) {
+        context.globalAlpha = 0.5;
+      }
       drawSpriteAt('leon'+ (p.direction == 'right' ? '_right' : '_left') + (p.trailing ? "_trailing" : ""), p.display_x, p.display_y);
+      context.globalAlpha = 1.0;
     };
     p.damage = (dmg) => {
       p.hp -= dmg;
@@ -729,6 +734,47 @@ function level() {
         }
       }
       return los;
+    };
+    p.useItem = () => {
+      // random teleport
+      if (p.item.type == 'bomb') {
+        var validSquares = []
+        for (var y = 0; y < level_height; y++) {
+          for (var x = 0; x < level_width; x++) {
+            if (!grid.get(x,y)) {
+              validSquares.push([x,y]);
+            }
+          }
+        }
+        var pos = validSquares[Math.floor(Math.random()*validSquares.length)];
+        p.display_x = player.x;
+        p.x = pos[0];
+        p.y = pos[1];
+      }
+      // 5 turns invisible
+      if (p.item.type == 'potion') {
+        p.ivsb = 5;
+      }
+      // throws in direction facing
+      if (p.item.type == 'shuriken') {
+        var dx = p.direction == 'right' ? 1 : -1;
+        var x = p.x;
+        var g = null;
+        while (g == null || g.type == 'money') {
+          x += dx;
+          g = grid.get(x, p.y);
+        }
+        if (g.type == 'wall') {
+          p.item.x = x - dx;
+          p.item.y = p.y;
+          entities.push(p.item);
+        } else {
+          if (g.die) {
+            g.die();
+          }
+        }
+      }
+      p.item = null;
     };
     p.direction = 'right';
     p.trailing = false;
@@ -955,6 +1001,7 @@ function level() {
 
   var K_P = 80;
   var K_SPACE = 32;
+  var K_Z = 90;
   var KEYS = {};
 
   function player_action(d) {
@@ -978,6 +1025,7 @@ function level() {
       player.x = pos_after_interaction[0];
       player.y = pos_after_interaction[1];
     }
+    player.ivsb = Math.max(player.ivsb - 1, 0);
     recomputeGrid();
   }
 
@@ -1005,6 +1053,13 @@ function level() {
       if (player.trailing) {
         player_action(direction[k]);
       }
+      update_camera();
+    }
+    if (k == K_Z) {
+      if (player.item) {
+        player.useItem();
+      }
+      recomputeGrid();
       update_camera();
     }
     if (k == K_SPACE) {
