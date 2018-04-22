@@ -18,7 +18,7 @@ function spr(name) {
 var level1 = 
 "xxxxxxxxxxxxxxxxxxxx\n" +
 "x...xxxxxxx........x\n" +
-"x...>.xxxx.........x\n" +
+"xv..>.xxxx.........x\n" +
 "x..@x..<xxx..xx....x\n" +
 "xxxxx.xxxxx..xx.xx.x\n" +
 "x...>........xxxxxxx\n" +
@@ -60,6 +60,9 @@ function makeWorld(level) {
       if (c == '>') {
         entities.push(makeCroc(x, y, 'right'));
       }
+      if (c == 'v') {
+        entities.push(makeVert(x, y, 'down'));
+      }
       x++;
     }
     level_width = s.length;
@@ -69,8 +72,8 @@ function makeWorld(level) {
 }
 
 function setup_camera() {
-  camera.x = Math.max(player.x - Math.floor(WINDOW_W/2), 0);
-  camera.y = Math.max(player.y - Math.floor(WINDOW_H/2), 0);
+  camera.x = player.x - Math.floor(WINDOW_W/2);
+  camera.y = player.y - Math.floor(WINDOW_H/2);
   camera.display_x = camera.x;
   camera.display_y = camera.y;
 }
@@ -154,6 +157,54 @@ function makeWall(x, y) {
     ];
     drawSpriteAt(sprites[neighbors], p.x, p.y);
   };
+  return p;
+}
+
+function makeVert(x, y, direction) {
+  var p = makeEntity(x, y, 'vert', 'vert');
+  p.direction = direction;
+  p.angry = false;
+  p.hp = 5;
+  p.draw = () => {
+    drawSpriteAt('vert_' + p.direction, p.x, p.y);
+    for (var i = 0; i < p.hp; i++) {
+      if (p.hp >= 4) {
+        drawSpriteAt('heart_small', p.x + 0.125*i, p.y+0.875);
+      } else {
+        drawSpriteAt('heart', p.x + 0.25*i, p.y+0.75);
+      }
+    }
+    if (p.angry) {
+      drawSpriteAt('angry', p.x, p.y);
+    }
+  };
+  p.damage = (dmg) => {
+    p.hp -= dmg;
+    if (p.hp <= 0) {
+      p.die();
+    }
+  };
+  p.die = () => {
+    entities = entities.filter(e => e != p);
+  };
+  return p;
+}
+
+function makeMoney(x, y, amount) {
+  var p = makeEntity(x, y, 'money', 'money');
+  p.draw = () => {
+    var fx = TILE_SIZE*(p.x-camera.display_x+0.5);
+    var fy = TILE_SIZE*(p.y-camera.display_y+0.75);
+    drawSpriteAt('money', x, y);
+    context.textAlign = "center";
+    context.font = '32px charm';
+    context.lineWidth = 3;
+    context.strokeStyle = 'black';
+    context.strokeText(p.amount, fx, fy);
+    context.fillStyle = 'white';
+    context.fillText(p.amount, fx, fy);
+  };
+  p.amount = amount;
   return p;
 }
 
@@ -286,6 +337,7 @@ function makePlayer(x, y) {
   p.peeking = false;
   p.peeking_direction = [0,0];
   p.hp = 3;
+  p.gold = 0;
   p.display_x = p.x;
   p.display_y = p.y;
   return p;
@@ -296,12 +348,19 @@ function handleInteraction(e, direction) {
     return [player.x, player.y];
   }
   if (e.type == 'croc') {
-    console.log(e.direction, direction);
     if ((e.direction == 'right' && direction[0] > 0) || (e.direction == 'left' && direction[0] < 0)) {
       e.die();
     } else {
       e.damage(1);
     }
+  }
+  if (e.type == 'vert') {
+    e.damage(1);
+  }
+  if (e.type == 'money') {
+    player.gold += e.amount;
+    entities = entities.filter(ent => ent != e);
+    return [player.x + direction[0], player.y + direction[1]];
   }
   return [player.x, player.y];
 }
@@ -369,6 +428,21 @@ function drawHUD() {
   for (var i = 0; i < player.hp; i++) {
     drawSpriteAt("heart", camera.display_x+0.125+i*0.25, camera.display_y-0.125);
   }
+  context.textAlign = "left";
+  var gold = "gold: " + player.gold;
+  context.font = '32px charm';
+  context.lineWidth = 3;
+  context.strokeStyle = 'black';
+  context.strokeText(gold, 8, 64);
+  context.fillStyle = 'white';
+  context.fillText(gold, 8, 64);
+  var item = "item:";
+  context.font = '32px charm';
+  context.lineWidth = 3;
+  context.strokeStyle = 'black';
+  context.strokeText(item, 8, 128);
+  context.fillStyle = 'white';
+  context.fillText(item, 8, 128);
 }
 
 function update(delta) {
@@ -390,7 +464,9 @@ function lerp(a, b, factor, min) {
   }
 }
 
+
 function draw(delta) {
+  context.fillStyle = 'black';
   context.fillRect(0,0,WIDTH,HEIGHT);
   drawBackground();
   drawEntities();
@@ -485,4 +561,9 @@ function loop(t) {
   draw(delta);
   window.requestAnimationFrame(loop);
 }
+entities.push(makeMoney(1,1,10));
+entities.push(makeEntity(2,1,"grave","grave"));
+/*entities.push(makeEntity(3,1,"healing_potion","healing_potion"));
+entities.push(makeEntity(2,2,"poison_potion","poison_potion"));
+entities.push(makeEntity(3,2,"invisibility_potion","invisibility_potion"));*/
 loop(prevTime);
