@@ -982,5 +982,43 @@ function playGameOverScene() {
   loop(prevTime);
 }
 
+function titleScreen() {
+  var scene_running = true;
+  var title = document.getElementById('spr_title');
+  var prevTime = performance.now();
+  var messageOpacity = 1.0;
+  function keydown(event) {
+    if (event.keyCode == 32) {
+      restart();
+    }
+  }
+  function restart() {
+    scene_running = false;
+    document.removeEventListener('keydown', keydown);
+    level();
+  }
+  function loop(t) {
+    var delta = t - prevTime;
+    prevTime = t;
+    context.drawImage(title, 0, 0);
+
+    context.textAlign = 'center';
+    context.font = '36px charm';
+    context.lineWidth = 12;
+    context.strokeStyle = 'rgba(0,0,0,' + messageOpacity+')';
+    context.strokeText("Press Space", 320-15, 445);
+    context.fillStyle = 'white';
+    context.fillStyle = 'rgba(255,255,255,' + messageOpacity+')';
+    context.fillText("Press Space", 320-15, 445);
+    messageOpacity = 0.65 * (1.0 + Math.sin(t/250));
+    if (scene_running) {
+      window.requestAnimationFrame(loop);
+    }
+  }
+  document.addEventListener('keydown', keydown);
+  loop(prevTime);
+}
+
 //level();
-playGameOverScene();
+//playGameOverScene();
+titleScreen();
