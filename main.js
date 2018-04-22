@@ -184,6 +184,23 @@ function makeVert(x, y, direction) {
       drawSpriteAt('angry', p.display_x, p.display_y);
     }
   };
+  p.drawLOS = () => {
+    var len = 0;
+    for (len = 1; len < LOS; len++) {
+      var g = grid.get(p.x, p.y + len*(p.direction == 'down' ? 1 : -1));
+      if (!g) continue;
+      if (isLosBlocking(g)) break;
+    }
+    if (p.direction == 'down') {
+      var X = (p.display_x - camera.display_x)*TILE_SIZE;
+      var Y = (p.display_y - camera.display_y)*TILE_SIZE + BORDER_H;
+      context.drawImage(spr('los_2_down'), 0, 0, 64, len*64, X, Y, 64, len*64);
+    } else {
+      var X = (p.display_x - camera.display_x)*TILE_SIZE;
+      var Y = (p.display_y - (len-1) - camera.display_y)*TILE_SIZE + BORDER_H;
+      context.drawImage(spr('los_2_up'), 0, (3-len)*64, 64, len*64, X, Y, 64, len*64);
+    }
+  };
   p.damage = (dmg) => {
     p.hp -= dmg;
     if (p.hp <= 0) {
@@ -235,6 +252,15 @@ function makeVert(x, y, direction) {
     if (p.patrolCounter > p.patrolLength) {
       p.direction = p.direction == 'down' ? 'up' : 'down';
       p.patrolCounter = 0;
+      for (var i = 0; i < LOS; i++) {
+        var g = grid.get(p.x, p.y + i*(p.direction == 'down' ? 1 : -1));
+        if (!g) continue;
+        if (g.type == 'wall' || g.type == 'grave') break;
+        if (g.type == 'player') {
+          p.angry = true;
+          p.patrolCounter = 0;
+        }
+      }
     }
   };
   p.update = () => {
@@ -262,6 +288,10 @@ function makeMoney(x, y, amount) {
   };
   p.amount = amount;
   return p;
+}
+
+function isLosBlocking(e) {
+  return e.type == 'wall' || e.type == 'vert' || e.type == 'croc' || e.type == 'grave';
 }
 
 function makeGrave(x, y) {
@@ -306,6 +336,23 @@ function makeCroc(x, y, direction) {
       drawSpriteAt('angry', p.display_x, p.display_y);
     }
   };
+  p.drawLOS = () => {
+    var len = 0;
+    for (len = 1; len < LOS; len++) {
+      var g = grid.get(p.x + len*(p.direction == 'right' ? 1 : -1), p.y);
+      if (!g) continue;
+      if (isLosBlocking(g)) break;
+    }
+    if (p.direction == 'right') {
+      var X = (p.display_x - camera.display_x)*TILE_SIZE;
+      var Y = (p.display_y - camera.display_y)*TILE_SIZE + BORDER_H;
+      context.drawImage(spr('los_2_right'), 0, 0, len*64, 64, X, Y, len*64, 64);
+    } else {
+      var X = (p.display_x - (len-1) - camera.display_x)*TILE_SIZE;
+      var Y = (p.display_y - camera.display_y)*TILE_SIZE + BORDER_H;
+      context.drawImage(spr('los_2_left'), (3-len)*64, 0, len*64, 64, X, Y, len*64, 64);
+    }
+  };
   p.patrolLength = 2;
   p.patrolCounter = 0;
   p.maxhp = 3;
@@ -347,10 +394,10 @@ function makeCroc(x, y, direction) {
       move()
     }
     p.angry = false;
-    for (var i = 0; i < LOS; i++) {
+    for (var i = 1; i < LOS; i++) {
       var g = grid.get(p.x + i*(p.direction == 'right' ? 1 : -1), p.y);
       if (!g) continue;
-      if (g.type == 'wall' || g.type == 'grave') break;
+      if (isLosBlocking(g)) break;
       if (g.type == 'player') {
         p.angry = true;
         p.patrolCounter = 0;
@@ -360,6 +407,15 @@ function makeCroc(x, y, direction) {
     if (p.patrolCounter > p.patrolLength) {
       p.direction = p.direction == 'right' ? 'left' : 'right';
       p.patrolCounter = 0;
+      for (var i = 1; i < LOS; i++) {
+        var g = grid.get(p.x + i*(p.direction == 'right' ? 1 : -1), p.y);
+        if (!g) continue;
+        if (isLosBlocking(g)) break;
+        if (g.type == 'player') {
+          p.angry = true;
+          p.patrolCounter = 0;
+        }
+      }
     }
   };
   p.update = () => {
@@ -507,11 +563,20 @@ function drawEntities() {
   var los = player.lineOfSight();
   entities.forEach(e => {
     if (!((e.x+','+e.y) in los)) {
-      if (e.type == 'croc') {
+      if (e.type == 'croc' || e.type == 'vert') {
         return;
       }
     }
     e.draw();
+  });
+}
+
+function drawLOS() {
+  var los = player.lineOfSight();
+  entities.forEach(e => {
+    if ((e.x+','+e.y in los) && e.drawLOS) {
+      e.drawLOS();
+    }
   });
 }
 
@@ -587,6 +652,7 @@ function draw(delta) {
   context.fillRect(0,0,WIDTH,HEIGHT);
   drawBackground();
   drawEntities();
+  drawLOS();
   drawFogOfWar();
   drawHUD();
 }
