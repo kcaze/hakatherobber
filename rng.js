@@ -1,6 +1,18 @@
-function generateLevel(width, height, isFirstLevel) {
+function generateLevel(width, height, level) {
   var arr;
-  if (!isFirstLevel) {
+  if (level == 4) {
+    return"xxxx%xxxx\n"+
+    "xxx...xxx\n"+
+    "xxx.6.xxx\n"+
+    "xg.g.g.gx\n"+
+    "x.g.g.g.x\n"+
+    "xg.g.g.gx\n"+
+    "xx.xxx.xx\n"+
+    "xg..@..gx\n"+
+    "xxxxxxxxx";
+  }
+
+  if (level != 1) {
     while (true) {
       var room = generateFirstRoom(width, height);
       if (room.size >= 10 && room.size <= 30) {
@@ -18,12 +30,13 @@ function generateLevel(width, height, isFirstLevel) {
     arr[0][0] = '&'; arr[0][1] = '&'; arr[0][2] = '&'; arr[0][3] = '&'; arr[0][4] = '&';
     arr[1][0] = '&'; arr[1][1] = '3'; arr[1][2] = '2'; arr[1][3] = '4'; arr[1][4] = '&';
     arr[2][0] = '&'; arr[2][1] = '&'; arr[2][2] = '@'; arr[2][3] = '&'; arr[2][4] = '&';
-    arr[3][0] = '&'; arr[3][1] = '&'; arr[3][2] = '5'; arr[3][3] = '&'; arr[3][4] = '&';
+    arr[3][0] = '&'; arr[3][1] = '5'; arr[3][2] = '&'; arr[3][3] = '7'; arr[3][4] = '&';
     arr[4][0] = '&'; arr[4][1] = '&'; arr[4][2] = '&'; arr[4][3] = '&'; arr[4][4] = '&';
   }
 
   addShop(arr);
   while (addNewRoom(arr));
+  addStairs(arr);
 
   addPassages(arr);
   
@@ -31,27 +44,26 @@ function generateLevel(width, height, isFirstLevel) {
   var finalArr = makeArr(width+4, height+4);
   for (var i = 0; i < height+4; i++) {
     for (var j = 0; j < width+4; j++) {
-      finalArr[j][i] = 'x';
+      finalArr[i][j] = 'x';
     }
   }
   for (var i = 0; i < height; i++) {
     for (var j = 0; j < width; j++) {
-      finalArr[j+2][i+2] = arr[j][i];
+      finalArr[i+2][j+2] = arr[i][j];
     }
   }
   arr = finalArr;
 
 
   // Add objects
-  addObjects(arr);
+  addObjects(arr, level);
 
 
   // print out level
   var s = "";
   for (var i = 0; i < height+4; i++) {
-    s += "\n" + arr[i].join("");
+    s += (i != 0 ? "\n" : "") + arr[i].join("");
   }
-  console.log(s);
   return s;
 }
 
@@ -478,7 +490,7 @@ function isInvalid(x, y, w, h) {
   return x < 0 || x >= w || y < 0 || y >= h;
 }
 
-function addObjects(arr) {
+function addObjects(arr, level) {
   var width = arr[0].length;
   var height = arr.length;
   var dirs = [[0,1],[0,-1],[1,0],[-1,0]];
@@ -521,7 +533,7 @@ function addObjects(arr) {
       }
       if (Object.keys(n).length == 4) {
         var r = Math.random();
-        if (r < 0.15) {
+        if (r < 0.15 && level > 1) {
           arr[y][x] = ['l','u','r','d'][Math.floor(Math.random()*4)];
         } else if (r < 0.25) {
           arr[y][x] = 'g';
@@ -529,7 +541,7 @@ function addObjects(arr) {
       }
       if (Object.keys(n).length == 3) {
         var r = Math.random();
-        if (r < 0.1) {
+        if (r < 0.1 && level > 1) {
           arr[y][x] = ['l','u','r','d'][Math.floor(Math.random()*4)];
         }
       }
@@ -570,4 +582,27 @@ function addShop(arr) {
     arr[y+2][x-2] = '&'; arr[y+2][x-1] = '&'; arr[y+2][x] = '&'; arr[y+2][x+1] = '&';arr[y+2][x+2] = '&';
     return;
   }
+}
+
+function addStairs(arr) {
+  var w = arr[0].length;
+  var h = arr.length;
+  var player = null;
+  for (var y = 0; y < h; y++) {
+    for (var x = 0; x < w; x++) {
+      if (arr[y][x] == '@') player = [x,y];
+    }
+  }
+  function dist(a, b) {
+    return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
+  }
+  var stairs = null;
+  for (var y = 0; y < h; y++) {
+    for (var x = 0; x < w; x++) {
+      if (arr[y][x] != '.') continue;
+      if (!stairs) stairs = [x,y];
+      if (dist(stairs, player) < dist([x,y], player) && Math.random() < 0.2) stairs = [x,y];
+    }
+  }
+  arr[stairs[1]][stairs[0]] = '$'
 }

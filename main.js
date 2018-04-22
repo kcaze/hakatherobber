@@ -1,6 +1,7 @@
 var canvas = document.getElementById('canvas');
 var context = canvas.getContext('2d');
 function level() {
+  var level = 1;
   var scene_running = true;
   var WIDTH = 640;
   var HEIGHT = 480;
@@ -17,19 +18,6 @@ function level() {
     return document.getElementById('spr_' + name);
   }
 
-  var level1 = 
-  "xxxxxxxxxxxxxxxxxxxx\n" +
-  "x.....x..gxxxxxv.vxx\n" +
-  "x.e...xxxxxxxxx.v.gx\n" +
-  "x..e..x.<..>...v.vxx\n" +
-  "x.....xxxx.xxxx.v.xx\n" +
-  "x@....x.xxxxxxxxxxxx\n" +
-  "xxxxxvxxxxxxgxxxxxxx\n" +
-  "xx.xxxxxxxxgvgxxxxxx\n" +
-  "xx..<.xxxxgvgvgxxxxx\n" +
-  "xx.xxvxx.g.g.g.g.xxx\n" +
-  "xx.>....>.......<..x\n" +
-  "xxxxxxxxxxxxxxxxxxxx";
   var level_width;
   var level_height;
   var entities = [];
@@ -58,7 +46,14 @@ function level() {
       for (var i = 0; i < s.length; i++) {
         var c = s[i];
         if (c == '@') {
-          player = makePlayer(x, y);
+          if (!player) {
+            player = makePlayer(x, y);
+          } else {
+            player.x = x;
+            player.display_x = x;
+            player.y = y;
+            player.display_y = y;
+          }
           setup_camera();
           entities.push(player);
         }
@@ -113,8 +108,20 @@ function level() {
         if (c == '5') {
           entities.push(makeSign(x, y, 'Surprise ghosts from BEHIND to EXPEL them.'));
         }
+        if (c == '7') {
+          entities.push(makeSign(x, y, 'Will you SURVIVE all 3 floors?'));
+        }
+        if (c == '6') {
+          entities.push(makeSign(x, y, 'CONGRATULATIONS, but will you survive NEXT TIME?'));
+        }
+        if (c == '$') {
+          entities.push(makeStairs(x,y));
+        }
         if (c == 'g') {
           entities.push(makeGrave(x, y));
+        }
+        if (c == '%') {
+          entities.push(makeEntity(x, y,'exit','exit'));
         }
         x++;
       }
@@ -179,6 +186,11 @@ function level() {
   function makeSign(x, y, msg) {
     var p = makeEntity(x,y,'sign','sign');
     p.msg = msg;
+    return p;
+  }
+
+  function makeStairs(x, y) {
+    var p = makeEntity(x,y,'stairs','stairs');
     return p;
   }
 
@@ -868,6 +880,15 @@ function level() {
         entities = entities.filter(ent => ent != e);
         return [player.x + direction[0], player.y + direction[1]];
       }
+    } if (e.type == 'stairs') {
+      level += 1;
+      makeWorld(generateLevel(15 + level*bellCurve(4,6), 15 + level*bellCurve(4,6), level));
+    } if (e.type == 'exit') {
+      setTimeout(() => {
+        tearDown();
+        playVictoryScene();
+      }, 500);
+      return [player.x + direction[0], player.y + direction[1]];
     }
     return [player.x, player.y];
   }
@@ -1135,7 +1156,7 @@ function level() {
     document.removeEventListener('keyup', keyup);
   }
 
-  makeWorld(generateLevel(30, 30, true));
+  makeWorld(generateLevel(15 + level*bellCurve(4,6), 15 + level*bellCurve(4,6), level));
 
   var prevTime = performance.now();
   function loop(t) {
@@ -1229,6 +1250,42 @@ function titleScreen() {
     context.fillStyle = 'white';
     context.fillStyle = 'rgba(255,255,255,' + messageOpacity+')';
     context.fillText("Press Space", 320-15, 445);
+    messageOpacity = 0.65 * (1.0 + Math.sin(t/250));
+    if (scene_running) {
+      window.requestAnimationFrame(loop);
+    }
+  }
+  document.addEventListener('keydown', keydown);
+  loop(prevTime);
+}
+
+function playVictoryScene() {
+  var scene_running = true;
+  var victory = document.getElementById('spr_victory');
+  var prevTime = performance.now();
+  var messageOpacity = 1.0;
+  function keydown(event) {
+    if (event.keyCode == 32) {
+      restart();
+    }
+  }
+  function restart() {
+    scene_running = false;
+    document.removeEventListener('keydown', keydown);
+    titleScreen();
+  }
+  function loop(t) {
+    var delta = t - prevTime;
+    prevTime = t;
+    context.drawImage(victory, 0, 0);
+    context.textAlign = 'center';
+    context.font = '32px charm';
+    context.lineWidth = 12;
+    context.strokeStyle = 'rgba(0,0,0,' + messageOpacity+')';
+    context.strokeText("Press Space to return to title", 320-20, 440);
+    context.fillStyle = 'white';
+    context.fillStyle = 'rgba(255,255,255,' + messageOpacity+')';
+    context.fillText("Press Space to return to title", 320-20, 440);
     messageOpacity = 0.65 * (1.0 + Math.sin(t/250));
     if (scene_running) {
       window.requestAnimationFrame(loop);
