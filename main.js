@@ -6,8 +6,8 @@ var BORDER_H = 16;
 var WINDOW_W = 10;
 var WINDOW_H = 7;
 var TILE_SIZE = 64;
-var CAMERA_BOUNDARY_W = 1;
-var CAMERA_BOUNDARY_H = 1;
+var CAMERA_BOUNDARY_W = 0;
+var CAMERA_BOUNDARY_H = 0;
 var CAMERA_FOLLOW_FACTOR = 0.05;
 var CAMERA_MIN_FOLLOW = 0.01;
 
@@ -17,16 +17,16 @@ function spr(name) {
 
 var level1 = 
 "xxxxxxxxxxxxxxxxxxxx\n" +
-"x...xxxxxxx........x\n" +
-"xv..>.xxxx.........x\n" +
-"x..@x..<xxx..xx....x\n" +
-"xxxxx.xxxxx..xx.xx.x\n" +
-"x...>........xxxxxxx\n" +
-"x..xxxxxxxx..x.....x\n" +
-"x.......xxx..x.....x\n" +
-"x..xx.....x..x.....x\n" +
-"x..xx..............x\n" +
-"x..................x\n" +
+"x...xx...gxxxxxv.vxx\n" +
+"x..>..vxxxxxxxx.v.gx\n" +
+"x..@xx..<..>...v.vxx\n" +
+"xxxxxxgxxx.xxxx.v.xx\n" +
+"xx..>.>.xxxxxxxxxxxx\n" +
+"xx.xxvxxxxxxgxxxxxxx\n" +
+"xx.xxxxxxxxgvgxxxxxx\n" +
+"xx..<.xxxxgvgvgxxxxx\n" +
+"xx.xxvxx.g.g.g.g.xxx\n" +
+"xx.>....>.......<..x\n" +
 "xxxxxxxxxxxxxxxxxxxx";
 var level_width;
 var level_height;
@@ -62,6 +62,9 @@ function makeWorld(level) {
       }
       if (c == 'v') {
         entities.push(makeVert(x, y, 'down'));
+      }
+      if (c == 'g') {
+        entities.push(makeGrave(x, y));
       }
       x++;
     }
@@ -189,6 +192,7 @@ function makeVert(x, y, direction) {
   };
   p.die = () => {
     entities = entities.filter(e => e != p);
+    entities.push(makeMoney(p.x, p.y, Math.ceil(3*Math.random())));
   };
   p.patrolLength = 3;
   p.patrolCounter = 0;
@@ -198,9 +202,11 @@ function makeVert(x, y, direction) {
     function move() {
       var new_y = p.y + (p.direction == 'down' ? 1 : -1);
       var g = grid.get(p.x, new_y);
-      if (!g) {
+      if (!g || g.type == 'money') {
+        entities = entities.filter(e => e != g);
         if (p.patrolCounter != p.patrolLength) {
           p.y = new_y;
+          recomputeGrid();
         }
         return false;
       } else if (g.type == 'player') {
@@ -219,7 +225,7 @@ function makeVert(x, y, direction) {
     for (var i = 0; i < LOS; i++) {
       var g = grid.get(p.x, p.y + i*(p.direction == 'down' ? 1 : -1));
       if (!g) continue;
-      if (g.type == 'wall') break;
+      if (g.type == 'wall' || g.type == 'grave') break;
       if (g.type == 'player') {
         p.angry = true;
         p.patrolCounter = 0;
@@ -263,11 +269,13 @@ function makeGrave(x, y) {
   p.entityInside = (() => {
     var r = Math.random();
     if (r < 0.8) {
-      return () => makeMoney(p.x, p.y, Math.ceil(10*Math.random()));
+      // roll three dice for a nice bell curve approximation
+      var g = Math.ceil(10/3*(Math.random() + Math.random() + Math.random()));
+      return () => makeMoney(p.x, p.y, g);
     } else if (r < 0.85) {
-      return () => makeVert(x,y,'down');
+      return () => makeVert(x,y,Math.random() < 0.5 ? 'down' : 'up');
     } else {
-      return () => makeCroc(x,y,'down');
+      return () => makeCroc(x,y,Math.random() < 0.5 ? 'right' : 'left');
     }
   })();
   p.crack = () => {
@@ -276,6 +284,7 @@ function makeGrave(x, y) {
   p.update = () => {
     if (p.cracked) {
       var e = p.entityInside();
+      console.log(e.type);
       if (e) entities.push(p.entityInside());
       entities = entities.filter(e => e != p);
     }
@@ -309,6 +318,7 @@ function makeCroc(x, y, direction) {
   };
   p.die = () => {
     entities = entities.filter(e => e != p);
+    entities.push(makeMoney(p.x, p.y, Math.ceil(2*Math.random())));
   };
   p.display_x = p.x;
   p.display_y = p.y;
@@ -316,9 +326,11 @@ function makeCroc(x, y, direction) {
     function move() {
       var new_x = p.x + (p.direction == 'right' ? 1 : -1);
       var g = grid.get(new_x, p.y);
-      if (!g) {
+      if (!g || g.type == 'money') {
+        entities = entities.filter(e => e != g);
         if (p.patrolCounter != p.patrolLength) {
           p.x = new_x;
+          recomputeGrid();
         }
         return false;
       } else if (g.type == 'player') {
@@ -338,7 +350,7 @@ function makeCroc(x, y, direction) {
     for (var i = 0; i < LOS; i++) {
       var g = grid.get(p.x + i*(p.direction == 'right' ? 1 : -1), p.y);
       if (!g) continue;
-      if (g.type == 'wall') break;
+      if (g.type == 'wall' || g.type == 'grave') break;
       if (g.type == 'player') {
         p.angry = true;
         p.patrolCounter = 0;
@@ -666,8 +678,8 @@ function loop(t) {
   draw(delta);
   window.requestAnimationFrame(loop);
 }
-entities.push(makeMoney(1,1,10));
-entities.push(makeGrave(2,1));
+/*entities.push(makeMoney(1,1,10));
+entities.push(makeGrave(3,1));*/
 /*entities.push(makeEntity(3,1,"healing_potion","healing_potion"));
 entities.push(makeEntity(2,2,"poison_potion","poison_potion"));
 entities.push(makeEntity(3,2,"invisibility_potion","invisibility_potion"));*/
