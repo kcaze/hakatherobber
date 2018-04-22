@@ -26,6 +26,11 @@ function generateLevel(width, height) {
   }
   arr = finalArr;
 
+
+  // Add objects
+  addObjects(arr);
+
+
   // print out level
   var s = "";
   for (var i = 0; i < height+4; i++) {
@@ -456,4 +461,68 @@ function addPassages(arr) {
 
 function isInvalid(x, y, w, h) {
   return x < 0 || x >= w || y < 0 || y >= h;
+}
+
+function addObjects(arr) {
+  var width = arr[0].length;
+  var height = arr.length;
+  var dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+
+  for (var y = 0; y < height; y++) {
+    for (var x = 0; x < width; x++) {
+      if (arr[y][x] == 'x' || arr[y][x] == '@') continue;
+      var reverseDirMap = {
+        '1,0': 'r',
+        '-1,0': 'l',
+        '0,1': 'd',
+        '0,-1': 'u',
+      };
+      var n = {};
+      dirs.forEach(d => {
+        var xx = x + d[0];
+        var yy = y + d[1];
+        if (isInvalid(xx,yy,width,height)) return;
+        if (arr[yy][xx] == '.') n[reverseDirMap[d[0]+','+d[1]]] = true;
+      });
+      if ('l' in n && 'r' in n && !('d' in n) && !('u' in n)) {
+        if (Math.random() < 0.3) {
+          arr[y][x] = Math.random() < 0.5 ? '<' : '>';
+        }
+      }
+      if ('l' in n && 'r' in n && (!('d' in n) || !('u' in n))) {
+        if (Math.random() < 0.15) {
+          arr[y][x] = Math.random() < 0.5 ? '<' : '>';
+        }
+      }
+      if ('d' in n && 'u' in n && !('l' in n) && !('r' in n)) {
+        if (Math.random() < 0.3) {
+          arr[y][x] = Math.random() < 0.5 ? '^' : 'v';
+        }
+      }
+      if ('d' in n && 'u' in n && (!('l' in n) || !('r' in n))) {
+        if (Math.random() < 0.15) {
+          arr[y][x] = Math.random() < 0.5 ? '^' : 'v';
+        }
+      }
+      if (Object.keys(n).length == 4) {
+        var r = Math.random();
+        if (r < 0.15) {
+          arr[y][x] = ['l','u','r','d'][Math.floor(Math.random()*4)];
+        } else if (r < 0.25) {
+          arr[y][x] = 'g';
+        }
+      }
+      if (Object.keys(n).length == 3) {
+        var r = Math.random();
+        if (r < 0.1) {
+          arr[y][x] = ['l','u','r','d'][Math.floor(Math.random()*4)];
+        }
+      }
+      if (Object.keys(n).length == 1) {
+        if (Math.random() < 0.2) {
+          arr[y][x] = 'g';
+        }
+      }
+    }
+  }
 }

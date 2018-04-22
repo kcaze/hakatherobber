@@ -63,7 +63,19 @@ function makeWorld(level) {
       if (c == 'v') {
         entities.push(makeVert(x, y, 'down'));
       }
-      if (c == 'e') {
+      if (c == '^') {
+        entities.push(makeVert(x, y, 'up'));
+      }
+      if (c == 'l') {
+        entities.push(makeEye(x, y, 'left'));
+      }
+      if (c == 'r') {
+        entities.push(makeEye(x, y, 'right'));
+      }
+      if (c == 'u') {
+        entities.push(makeEye(x, y, 'up'));
+      }
+      if (c == 'd') {
         entities.push(makeEye(x, y, 'down'));
       }
       if (c == 'g') {
