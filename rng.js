@@ -1,11 +1,25 @@
-function generateLevel(width, height) {
+function generateLevel(width, height, isFirstLevel) {
   var arr;
-  while (true) {
-    var room = generateFirstRoom(width, height);
-    if (room.size >= 10 && room.size <= 30) {
-      arr = room.arr;
-      break;
+  if (!isFirstLevel) {
+    while (true) {
+      var room = generateFirstRoom(width, height);
+      if (room.size >= 10 && room.size <= 30) {
+        arr = room.arr;
+        break;
+      }
     }
+  } else {
+    arr = makeArr(width, height);
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        arr[y][x] = 'x';
+      }
+    }
+    arr[0][0] = '&'; arr[0][1] = '&'; arr[0][2] = '&'; arr[0][3] = '&'; arr[0][4] = '&';
+    arr[1][0] = '&'; arr[1][1] = '3'; arr[1][2] = '2'; arr[1][3] = '4'; arr[1][4] = '&';
+    arr[2][0] = '&'; arr[2][1] = '&'; arr[2][2] = '@'; arr[2][3] = '&'; arr[2][4] = '&';
+    arr[3][0] = '&'; arr[3][1] = '&'; arr[3][2] = '5'; arr[3][3] = '&'; arr[3][4] = '&';
+    arr[4][0] = '&'; arr[4][1] = '&'; arr[4][2] = '&'; arr[4][3] = '&'; arr[4][4] = '&';
   }
 
   addShop(arr);
@@ -135,7 +149,7 @@ function generateFirstRoom(width, height) {
       }
     }
     var loc = playerLocations[bellCurve(0, playerLocations.length - 1)];
-    //arr[loc[1]][loc[0]] = '@';
+    arr[loc[1]][loc[0]] = '@';
   }
 
   return {arr: arr, size: regions[maxRegionI]};
@@ -553,7 +567,7 @@ function addShop(arr) {
     arr[y-1][x-2] = '&'; arr[y-1][x-1] = '&'; arr[y-1][x] = '&'; arr[y-1][x+1] = '&';arr[y-1][x+2] = '&';
     arr[y][x-2] = '&'; arr[y][x-1] = 'b'; arr[y][x] = 'k'; arr[y][x+1] = 'p'; arr[y][x+2] = '&';
     arr[y+1][x-2] = '&'; arr[y+1][x-1] = '&'; arr[y+1][x] = '1'; arr[y+1][x+1] = '&'; arr[y+1][x+2] = '&';
-    arr[y+2][x-2] = '@'; arr[y+2][x-1] = '&'; arr[y+2][x] = '&'; arr[y+2][x+1] = '&';arr[y+2][x+2] = '&';
+    arr[y+2][x-2] = '&'; arr[y+2][x-1] = '&'; arr[y+2][x] = '&'; arr[y+2][x+1] = '&';arr[y+2][x+2] = '&';
     return;
   }
 }

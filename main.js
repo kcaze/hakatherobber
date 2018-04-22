@@ -99,7 +99,19 @@ function level() {
           entities.push(makeShuriken(x, y));
         }
         if (c == '1') {
-          entities.push(makeSign(x, y, 'Welcome to the SHOP. The items are not FREE.'));
+          entities.push(makeSign(x, y, 'Welcome to the SHOP.   The items are not FREE.'));
+        }
+        if (c == '2') {
+          entities.push(makeSign(x, y, 'This is the GRAVE.   There is MONEY to be found.'));
+        }
+        if (c == '3') {
+          entities.push(makeSign(x, y, 'Ghosts will move AFTER you, unless you CROUCH.'));
+        }
+        if (c == '4') {
+          entities.push(makeSign(x, y, 'Don\'t get CAUGHT.   Maybe try PEEKING around the corner?'));
+        }
+        if (c == '5') {
+          entities.push(makeSign(x, y, 'Surprise ghosts from BEHIND to EXPEL them.'));
         }
         if (c == 'g') {
           entities.push(makeGrave(x, y));
@@ -790,7 +802,7 @@ function level() {
     p.peeking = false;
     p.peeking_direction = [0,0];
     p.hp = 3;
-    p.gold = 1000;
+    p.gold = 0;
     p.item = null;
     p.display_x = p.x;
     p.display_y = p.y;
@@ -893,7 +905,7 @@ function level() {
     var los = player.lineOfSight();
     entities.forEach(e => {
       if (!((e.x+','+e.y) in los)) {
-        if (e.type == 'croc' || e.type == 'vert') {
+        if (e.type == 'croc' || e.type == 'vert' || e.type == 'eye') {
           return;
         }
       }
@@ -935,14 +947,14 @@ function level() {
     context.textAlign = "left";
     var gold = "gold: " + player.gold;
     context.font = '32px charm';
-    context.lineWidth = 3;
+    context.lineWidth = 5;
     context.strokeStyle = 'black';
     context.strokeText(gold, 8, 64);
     context.fillStyle = 'white';
     context.fillText(gold, 8, 64);
     var item = "item:";
     context.font = '32px charm';
-    context.lineWidth = 3;
+    context.lineWidth = 5;
     context.strokeStyle = 'black';
     context.strokeText(item, 8, 128);
     context.fillStyle = 'white';
@@ -953,31 +965,40 @@ function level() {
 
     context.textAlign = "right";
     msg = "Hold shift to peek";
-    context.font = '24px charm';
-    context.lineWidth = 3;
+    context.font = '32px charm';
+    context.lineWidth = 5;
     context.strokeStyle = 'black';
-    context.strokeText(msg, 635, 28);
+    context.strokeText(msg, 635, 36);
     context.fillStyle = 'white';
-    context.fillText(msg, 635, 28);
+    context.fillText(msg, 635, 36);
 
     context.textAlign = "right";
     msg = "Hold space to crouch";
-    context.font = '24px charm';
-    context.lineWidth = 3;
+    context.font = '32px charm';
+    context.lineWidth = 5;
     context.strokeStyle = 'black';
-    context.strokeText(msg, 640, 64);
+    context.strokeText(msg, 635, 76);
     context.fillStyle = 'white';
-    context.fillText(msg, 640, 64);
+    context.fillText(msg, 635, 76);
+
+    context.textAlign = "right";
+    msg = "Press X to use item";
+    context.font = '32px charm';
+    context.lineWidth = 5;
+    context.strokeStyle = 'black';
+    context.strokeText(msg, 635, 116);
+    context.fillStyle = 'white';
+    context.fillText(msg, 635, 116);
 
     var g = grid.get(player.x, player.y-1);
     if (g && g.type == 'sign') {
       context.textAlign = "left";
       context.font = '32 charm';
-      context.lineWidth = 3;
+      context.lineWidth = 5;
       context.strokeStyle = 'black';
-      context.strokeText(g.msg, 8, 480 - 16);
+      context.strokeText(g.msg, 8, 480 - 24);
       context.fillStyle = 'white';
-      context.fillText(g.msg, 8, 480 - 16);
+      context.fillText(g.msg, 8, 480 - 24);
     }
   }
 
@@ -1021,7 +1042,7 @@ function level() {
 
   var K_P = 80;
   var K_SPACE = 32;
-  var K_Z = 90;
+  var K_X = 88;
   var KEYS = {};
 
   function player_action(d) {
@@ -1075,7 +1096,7 @@ function level() {
       }
       update_camera();
     }
-    if (k == K_Z) {
+    if (k == K_X) {
       if (player.item) {
         player.useItem();
       }
@@ -1114,7 +1135,7 @@ function level() {
     document.removeEventListener('keyup', keyup);
   }
 
-  makeWorld(generateLevel(30, 30));
+  makeWorld(generateLevel(30, 30, true));
 
   var prevTime = performance.now();
   function loop(t) {
