@@ -98,6 +98,9 @@ function level() {
         if (c == 'k') {
           entities.push(makeShuriken(x, y));
         }
+        if (c == '1') {
+          entities.push(makeSign(x, y, 'Welcome to the SHOP. The items are not FREE.'));
+        }
         if (c == 'g') {
           entities.push(makeGrave(x, y));
         }
@@ -158,6 +161,12 @@ function level() {
       draw: draw,
       type: type,
     };
+    return p;
+  }
+
+  function makeSign(x, y, msg) {
+    var p = makeEntity(x,y,'sign','sign');
+    p.msg = msg;
     return p;
   }
 
@@ -959,6 +968,17 @@ function level() {
     context.strokeText(msg, 640, 64);
     context.fillStyle = 'white';
     context.fillText(msg, 640, 64);
+
+    var g = grid.get(player.x, player.y-1);
+    if (g && g.type == 'sign') {
+      context.textAlign = "left";
+      context.font = '32 charm';
+      context.lineWidth = 3;
+      context.strokeStyle = 'black';
+      context.strokeText(g.msg, 8, 480 - 16);
+      context.fillStyle = 'white';
+      context.fillText(g.msg, 8, 480 - 16);
+    }
   }
 
   function update(delta) {
