@@ -17,7 +17,7 @@ function spr(name) {
 
 var level1 = 
 "xxxxxxxxxxxxxxxxxxxx\n" +
-"x...xx...gxxxxxv.vxx\n" +
+"x.e.xx...gxxxxxv.vxx\n" +
 "x..>..vxxxxxxxx.v.gx\n" +
 "x..@xx..<..>...v.vxx\n" +
 "xxxxxxgxxx.xxxx.v.xx\n" +
@@ -62,6 +62,9 @@ function makeWorld(level) {
       }
       if (c == 'v') {
         entities.push(makeVert(x, y, 'down'));
+      }
+      if (c == 'e') {
+        entities.push(makeEye(x, y, 'down'));
       }
       if (c == 'g') {
         entities.push(makeGrave(x, y));
@@ -173,13 +176,16 @@ function makeVert(x, y, direction) {
   p.angry = false;
   p.draw = () => {
     drawSpriteAt('vert_' + p.direction, p.display_x, p.display_y);
-    for (var i = 0; i < p.hp; i++) {
-      if (p.hp >= 4) {
-        drawSpriteAt('heart_small', p.display_x + 0.125*i, p.display_y+0.875);
-      } else {
-        drawSpriteAt('heart', p.display_x + 0.25*i, p.display_y+0.75);
-      }
-    }
+    drawSpriteAt('heart_small', p.display_x+0.85, p.display_y+0.85);
+    var fx = (p.display_x - camera.display_x + 0.8)* TILE_SIZE;
+    var fy = (p.display_y - camera.display_y + 1.0)* TILE_SIZE + BORDER_H;
+    context.textAlign = "right";
+    context.font = '24px charm';
+    context.lineWidth = 3;
+    context.strokeStyle = 'red';
+    context.strokeText(p.hp, fx, fy);
+    context.fillStyle = 'white';
+    context.fillText(p.hp, fx, fy);
     if (p.angry) {
       drawSpriteAt('angry', p.display_x, p.display_y);
     }
@@ -213,8 +219,8 @@ function makeVert(x, y, direction) {
   };
   p.patrolLength = 3;
   p.patrolCounter = 0;
-  p.maxhp = 5;
-  p.hp = 5;
+  p.maxhp = 3;
+  p.hp = 3;
   p.step = () => {
     function move() {
       var new_y = p.y + (p.direction == 'down' ? 1 : -1);
@@ -329,9 +335,16 @@ function makeCroc(x, y, direction) {
   p.angry = false
   p.draw = () => {
     drawSpriteAt('croc_' + p.direction, p.display_x, p.display_y);
-    for (var i = 0; i < p.hp; i++) {
-      drawSpriteAt('heart', p.display_x + 0.25*i, p.display_y+0.75);
-    }
+    drawSpriteAt('heart_small', p.display_x+0.85, p.display_y+0.85);
+    var fx = (p.display_x - camera.display_x + 0.8)* TILE_SIZE;
+    var fy = (p.display_y - camera.display_y + 1.0)* TILE_SIZE + BORDER_H;
+    context.textAlign = "right";
+    context.font = '24px charm';
+    context.lineWidth = 3;
+    context.strokeStyle = 'red';
+    context.strokeText(p.hp, fx, fy);
+    context.fillStyle = 'white';
+    context.fillText(p.hp, fx, fy);
     if (p.angry) {
       drawSpriteAt('angry', p.display_x, p.display_y);
     }
@@ -417,6 +430,83 @@ function makeCroc(x, y, direction) {
         }
       }
     }
+  };
+  p.update = () => {
+    p.display_x += lerp(p.display_x, p.x, 0.5, 0.01);
+    p.display_y += lerp(p.display_y, p.y, 0.5, 0.01);
+  };
+  return p;
+}
+
+function makeEye(x, y, direction) {
+  var p = makeEntity(x, y, 'croc', 'croc');
+  var LOS = 4;
+  p.direction = direction
+  p.angry = false
+  p.draw = () => {
+    drawSpriteAt('eye_' + p.direction, p.display_x, p.display_y);
+    drawSpriteAt('heart_small', p.display_x+0.85, p.display_y+0.85);
+    var fx = (p.display_x - camera.display_x + 0.8)* TILE_SIZE;
+    var fy = (p.display_y - camera.display_y + 1.0)* TILE_SIZE + BORDER_H;
+    context.textAlign = "right";
+    context.font = '24px charm';
+    context.lineWidth = 3;
+    context.strokeStyle = 'red';
+    context.strokeText(p.hp, fx, fy);
+    context.fillStyle = 'white';
+    context.fillText(p.hp, fx, fy);
+    if (p.angry) {
+      drawSpriteAt('angry', p.display_x, p.display_y);
+    }
+  };
+  p.drawLOS = () => {
+    var dirs = {
+      'left': [-1, 0],
+      'right': [1, 0],
+      'up': [0, -1],
+      'down': [0, 1],
+    };
+    var len = 0;
+    for (len = 1; len < LOS; len++) {
+      var dx = dirs[p.direction][0];
+      var dy = dirs[p.direction][1];
+      var g = grid.get(p.x + len*dx, p.y + len*dy);
+      if (!g) continue;
+      if (isLosBlocking(g)) break;
+    }
+    if (p.direction == 'down') {
+      var X = (p.display_x - camera.display_x)*TILE_SIZE;
+      var Y = (p.display_y - camera.display_y)*TILE_SIZE + BORDER_H;
+      context.drawImage(spr('los_3_down'), 0, 0, 64, len*64, X, Y, 64, len*64);
+    } else if (p.direction == 'up') {
+      var X = (p.display_x - camera.display_x)*TILE_SIZE;
+      var Y = (p.display_y - (len-1) - camera.display_y)*TILE_SIZE + BORDER_H;
+      context.drawImage(spr('los_3_up'), 0, (LOS-len)*64, 64, len*64, X, Y, 64, len*64);
+    } else if (p.direction == 'right') {
+      var X = (p.display_x - camera.display_x)*TILE_SIZE;
+      var Y = (p.display_y - camera.display_y)*TILE_SIZE + BORDER_H;
+      context.drawImage(spr('los_3_right'), 0, 0, len*64, 64, X, Y, len*64, 64);
+    } else {
+      var X = (p.display_x - (len-1) - camera.display_x)*TILE_SIZE;
+      var Y = (p.display_y - camera.display_y)*TILE_SIZE + BORDER_H;
+      context.drawImage(spr('los_3_left'), (LOS-len)*64, 0, len*64, 64, X, Y, len*64, 64);
+    }
+  }
+  p.maxhp = 4;
+  p.hp = 4;
+  p.damage = (dmg) => {
+    p.hp -= dmg;
+    if (p.hp <= 0) {
+      p.die();
+    }
+  };
+  p.die = () => {
+    entities = entities.filter(e => e != p);
+    entities.push(makeMoney(p.x, p.y, Math.ceil(2*Math.random())));
+  };
+  p.display_x = p.x;
+  p.display_y = p.y;
+  p.step = () => {
   };
   p.update = () => {
     p.display_x += lerp(p.display_x, p.x, 0.5, 0.01);
