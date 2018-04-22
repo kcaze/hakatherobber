@@ -792,6 +792,24 @@ function level() {
     context.strokeText(item, 8, 128);
     context.fillStyle = 'white';
     context.fillText(item, 8, 128);
+
+    context.textAlign = "right";
+    msg = "Hold shift to peek";
+    context.font = '24px charm';
+    context.lineWidth = 3;
+    context.strokeStyle = 'black';
+    context.strokeText(msg, 635, 28);
+    context.fillStyle = 'white';
+    context.fillText(msg, 635, 28);
+
+    context.textAlign = "right";
+    msg = "Hold space to crouch";
+    context.font = '24px charm';
+    context.lineWidth = 3;
+    context.strokeStyle = 'black';
+    context.strokeText(msg, 640, 64);
+    context.fillStyle = 'white';
+    context.fillText(msg, 640, 64);
   }
 
   function update(delta) {
@@ -871,6 +889,11 @@ function level() {
     };
     var k = event.keyCode;
     if (k in direction) {
+      if (event.shiftKey) {
+        player.peeking = true;
+      } else {
+        player.peeking = false;
+      }
       if (!player.trailing) {
         player_action(direction[k]);
       }
@@ -881,11 +904,8 @@ function level() {
       }
       update_camera();
     }
-    if (k == K_P) {
-      player.peeking = true;
-    }
     if (k == K_SPACE) {
-      player.trailing = !player.trailing;
+      player.trailing = true;
     }
   }
 
@@ -905,8 +925,8 @@ function level() {
         player.peeking_direction = [0, 0];
       }
     }
-    if (k == K_P) {
-      player.peeking = false;
+    if (k == K_SPACE) {
+      player.trailing = false;
     }
   }
 
