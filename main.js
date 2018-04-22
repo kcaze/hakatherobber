@@ -162,20 +162,20 @@ function makeWall(x, y) {
 
 function makeVert(x, y, direction) {
   var p = makeEntity(x, y, 'vert', 'vert');
+  var LOS = 3;
   p.direction = direction;
   p.angry = false;
-  p.hp = 5;
   p.draw = () => {
-    drawSpriteAt('vert_' + p.direction, p.x, p.y);
+    drawSpriteAt('vert_' + p.direction, p.display_x, p.display_y);
     for (var i = 0; i < p.hp; i++) {
       if (p.hp >= 4) {
-        drawSpriteAt('heart_small', p.x + 0.125*i, p.y+0.875);
+        drawSpriteAt('heart_small', p.display_x + 0.125*i, p.display_y+0.875);
       } else {
-        drawSpriteAt('heart', p.x + 0.25*i, p.y+0.75);
+        drawSpriteAt('heart', p.display_x + 0.25*i, p.display_y+0.75);
       }
     }
     if (p.angry) {
-      drawSpriteAt('angry', p.x, p.y);
+      drawSpriteAt('angry', p.display_x, p.display_y);
     }
   };
   p.damage = (dmg) => {
@@ -187,6 +187,46 @@ function makeVert(x, y, direction) {
   p.die = () => {
     entities = entities.filter(e => e != p);
   };
+  p.patrolLength = 3;
+  p.patrolCounter = 0;
+  p.maxhp = 5;
+  p.hp = 5;
+  p.step = () => {
+    var new_y = p.y + (p.direction == 'down' ? 1 : -1);
+    var g = grid.get(p.x, new_y);
+    if (!g) {
+      if (p.patrolCounter != p.patrolLength) {
+        p.y = new_y;
+      }
+    } else if (g.type == 'player') {
+      player.hp -= 1;
+    } else {
+      p.direction = p.direction == 'down' ? 'up' : 'down';
+      p.patrolCounter = 0;
+      return;
+    }
+    p.angry = false;
+    for (var i = 0; i < LOS; i++) {
+      var g = grid.get(p.x, p.y + i*(p.direction == 'down' ? 1 : -1));
+      if (!g) continue;
+      if (g.type == 'wall') break;
+      if (g.type == 'player') {
+        p.angry = true;
+        p.patrolCounter = 0;
+      }
+    }
+    p.patrolCounter++;
+    if (p.patrolCounter > p.patrolLength) {
+      p.direction = p.direction == 'down' ? 'up' : 'down';
+      p.patrolCounter = 0;
+    }
+  };
+  p.update = () => {
+    p.display_x += lerp(p.display_x, p.x, 0.5, 0.01);
+    p.display_y += lerp(p.display_y, p.y, 0.5, 0.01);
+  };
+  p.display_x = p.x;
+  p.display_y = p.y;
   return p;
 }
 
@@ -214,8 +254,6 @@ function makeCroc(x, y, direction) {
   p.direction = direction
   p.angry = false
   p.draw = () => {
-    p.display_x += lerp(p.display_x, p.x, 0.5, 0.01);
-    p.display_y += lerp(p.display_y, p.y, 0.5, 0.01);
     drawSpriteAt('croc_' + p.direction, p.display_x, p.display_y);
     for (var i = 0; i < p.hp; i++) {
       drawSpriteAt('heart', p.display_x + 0.25*i, p.display_y+0.75);
@@ -241,15 +279,17 @@ function makeCroc(x, y, direction) {
   p.display_y = p.y;
   p.step = () => {
     var new_x = p.x + (p.direction == 'right' ? 1 : -1);
-    var g = grid.get(new_x, y);
+    var g = grid.get(new_x, p.y);
     if (!g) {
-      p.x = new_x;
-    } else if (g.type == 'wall') {
+      if (p.patrolCounter != p.patrolLength) {
+        p.x = new_x;
+      }
+    } else if (g.type == 'player') {
+      player.hp -= 1;
+    } else {
       p.direction = p.direction == 'right' ? 'left' : 'right';
       p.patrolCounter = 0;
       return;
-    } else if (g.type == 'player') {
-      player.hp -= 1;
     }
     p.angry = false;
     for (var i = 0; i < LOS; i++) {
@@ -266,6 +306,10 @@ function makeCroc(x, y, direction) {
       p.direction = p.direction == 'right' ? 'left' : 'right';
       p.patrolCounter = 0;
     }
+  };
+  p.update = () => {
+    p.display_x += lerp(p.display_x, p.x, 0.5, 0.01);
+    p.display_y += lerp(p.display_y, p.y, 0.5, 0.01);
   };
   return p;
 }
@@ -355,7 +399,11 @@ function handleInteraction(e, direction) {
     }
   }
   if (e.type == 'vert') {
-    e.damage(1);
+    if ((e.direction == 'up' && direction[1] < 0) || (e.direction == 'down' && direction[1] > 0)) {
+      e.die();
+    } else {
+      e.damage(1);
+    }
   }
   if (e.type == 'money') {
     player.gold += e.amount;
@@ -448,6 +496,11 @@ function drawHUD() {
 function update(delta) {
   camera.display_x += lerp(camera.display_x, camera.x, CAMERA_FOLLOW_FACTOR, CAMERA_MIN_FOLLOW);
   camera.display_y += lerp(camera.display_y, camera.y, CAMERA_FOLLOW_FACTOR, CAMERA_MIN_FOLLOW);
+  entities.forEach(e => {
+    if (e.update) {
+      e.update();
+    }
+  });
 }
 
 function lerp(a, b, factor, min) {
