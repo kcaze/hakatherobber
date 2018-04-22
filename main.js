@@ -17,12 +17,12 @@ function spr(name) {
 
 var level1 = 
 "xxxxxxxxxxxxxxxxxxxx\n" +
-"x.e.xx...gxxxxxv.vxx\n" +
-"x..>..vxxxxxxxx.v.gx\n" +
-"x..@xx..<..>...v.vxx\n" +
-"xxxxxxgxxx.xxxx.v.xx\n" +
-"xx..>.>.xxxxxxxxxxxx\n" +
-"xx.xxvxxxxxxgxxxxxxx\n" +
+"x.....x..gxxxxxv.vxx\n" +
+"x.e...xxxxxxxxx.v.gx\n" +
+"x..e..x.<..>...v.vxx\n" +
+"x.....xxxx.xxxx.v.xx\n" +
+"x@....x.xxxxxxxxxxxx\n" +
+"xxxxxvxxxxxxgxxxxxxx\n" +
 "xx.xxxxxxxxgvgxxxxxx\n" +
 "xx..<.xxxxgvgvgxxxxx\n" +
 "xx.xxvxx.g.g.g.g.xxx\n" +
@@ -297,7 +297,7 @@ function makeMoney(x, y, amount) {
 }
 
 function isLosBlocking(e) {
-  return e.type == 'wall' || e.type == 'vert' || e.type == 'croc' || e.type == 'grave';
+  return e.type == 'wall' || e.type == 'vert' || e.type == 'croc' || e.type == 'grave' || e.type == 'eye';
 }
 
 function makeGrave(x, y) {
@@ -439,7 +439,7 @@ function makeCroc(x, y, direction) {
 }
 
 function makeEye(x, y, direction) {
-  var p = makeEntity(x, y, 'croc', 'croc');
+  var p = makeEntity(x, y, 'eye', 'eye');
   var LOS = 4;
   p.direction = direction
   p.angry = false
@@ -459,13 +459,13 @@ function makeEye(x, y, direction) {
       drawSpriteAt('angry', p.display_x, p.display_y);
     }
   };
+  var dirs = {
+    'left': [-1, 0],
+    'right': [1, 0],
+    'up': [0, -1],
+    'down': [0, 1],
+  };
   p.drawLOS = () => {
-    var dirs = {
-      'left': [-1, 0],
-      'right': [1, 0],
-      'up': [0, -1],
-      'down': [0, 1],
-    };
     var len = 0;
     for (len = 1; len < LOS; len++) {
       var dx = dirs[p.direction][0];
@@ -492,6 +492,60 @@ function makeEye(x, y, direction) {
       context.drawImage(spr('los_3_left'), (LOS-len)*64, 0, len*64, 64, X, Y, len*64, 64);
     }
   }
+  p.step = () => {
+    if (!p.angry) {
+      var pdx = player.x - p.x;
+      var pdy = player.y - p.y;
+      if (pdx != 0 && pdy != 0) return;
+      if (Math.abs(pdx) >= LOS || Math.abs(pdy) >= LOS) return;
+      var dirMap = {
+        '-1,0':'left',
+        '1,0':'right',
+        '0,-1':'up',
+        '0,1':'down',
+      }
+      var dir = [Math.sign(pdx), Math.sign(pdy)];
+      var canSeePlayer = true;
+      for (var i = 1; i < (Math.abs(pdx)+Math.abs(pdy)); i++) {
+        var g = grid.get(p.x+i*dir[0], p.y+i*dir[1]);
+        if (g && isLosBlocking(g)) {
+          canSeePlayer = false;
+          break;
+        }
+        if (g && g.type == 'player') {
+          break;
+        }
+      }
+      if (canSeePlayer) {
+        p.direction = dirMap[dir[0]+','+dir[1]];
+      }
+    } else {
+      var d = dirs[p.direction];
+      while (true) {
+        var g = grid.get(p.x+d[0], p.y+d[1]);
+        if (g && g.type == 'player') {
+          player.damage(1);
+          break;
+        }
+        if (g && g.type != 'money') break;
+        p.x += d[0];
+        p.y += d[1];
+        recomputeGrid();
+      }
+    }
+    // recheck angry
+    p.angry = false;
+    for (var i = 1; i < LOS; i++) {
+      var g = grid.get(p.x+i*dirs[p.direction][0], p.y+i*dirs[p.direction][1]);
+      if (g && isLosBlocking(g)) {
+        break;
+      }
+      if (g && g.type == 'player') {
+        p.angry = true;
+        break;
+      }
+    }
+  };
   p.maxhp = 4;
   p.hp = 4;
   p.damage = (dmg) => {
@@ -502,12 +556,10 @@ function makeEye(x, y, direction) {
   };
   p.die = () => {
     entities = entities.filter(e => e != p);
-    entities.push(makeMoney(p.x, p.y, Math.ceil(2*Math.random())));
+    entities.push(makeMoney(p.x, p.y, Math.ceil(3*Math.random()) + 2));
   };
   p.display_x = p.x;
   p.display_y = p.y;
-  p.step = () => {
-  };
   p.update = () => {
     p.display_x += lerp(p.display_x, p.x, 0.5, 0.01);
     p.display_y += lerp(p.display_y, p.y, 0.5, 0.01);
@@ -604,6 +656,13 @@ function handleInteraction(e, direction) {
   }
   if (e.type == 'vert') {
     if ((e.direction == 'up' && direction[1] < 0) || (e.direction == 'down' && direction[1] > 0)) {
+      e.die();
+    } else {
+      e.damage(1);
+    }
+  }
+  if (e.type == 'eye') {
+    if ((e.direction == 'up' && direction[1] < 0) || (e.direction == 'down' && direction[1] > 0) || (e.direction == 'right' && direction[0] > 0) || (e.direction == 'left' && direction[0] < 0)) {
       e.die();
     } else {
       e.damage(1);
