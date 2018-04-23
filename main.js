@@ -1,7 +1,7 @@
 var canvas = document.getElementById('canvas');
 var context = canvas.getContext('2d');
 function level() {
-  var level = 4;
+  var level = 1;
   var scene_running = true;
   var WIDTH = 640;
   var HEIGHT = 480;
