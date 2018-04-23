@@ -1,7 +1,7 @@
 var canvas = document.getElementById('canvas');
 var context = canvas.getContext('2d');
 function level() {
-  var level = 1;
+  var level = 4;
   var scene_running = true;
   var WIDTH = 640;
   var HEIGHT = 480;
@@ -753,6 +753,7 @@ function level() {
       context.globalAlpha = 1.0;
     };
     p.damage = (dmg) => {
+      document.getElementById('hurt').play();
       p.hp -= dmg;
       camera.screenshake = 1;
       if (p.hp == 0) {
@@ -829,8 +830,10 @@ function level() {
       player.display_x += 2*direction[0];
       player.display_y += 2*direction[1];
       if ((e.direction == 'right' && direction[0] > 0) || (e.direction == 'left' && direction[0] < 0)) {
+        document.getElementById('backattack').play();
         e.die();
       } else {
+        document.getElementById('attack').play();
         e.damage(1);
       }
     }
@@ -838,8 +841,10 @@ function level() {
       player.display_x += 2*direction[0];
       player.display_y += 2*direction[1];
       if ((e.direction == 'up' && direction[1] < 0) || (e.direction == 'down' && direction[1] > 0)) {
+        document.getElementById('backattack').play();
         e.die();
       } else {
+        document.getElementById('attack').play();
         e.damage(1);
       }
     }
@@ -847,17 +852,21 @@ function level() {
       player.display_x += 2*direction[0];
       player.display_y += 2*direction[1];
       if ((e.direction == 'up' && direction[1] < 0) || (e.direction == 'down' && direction[1] > 0) || (e.direction == 'right' && direction[0] > 0) || (e.direction == 'left' && direction[0] < 0)) {
+        document.getElementById('backattack').play();
         e.die();
       } else {
+        document.getElementById('attack').play();
         e.damage(1);
       }
     }
     if (e.type == 'grave') {
+      document.getElementById('graveattack').play();
       player.display_x += 2*direction[0];
       player.display_y += 2*direction[1];
       e.crack();
     }
     if (e.type == 'money') {
+      document.getElementById('pickup').play();
       player.gold += e.amount;
       entities = entities.filter(ent => ent != e);
       return [player.x + direction[0], player.y + direction[1]];
@@ -865,6 +874,7 @@ function level() {
     if (e.type == 'shuriken' || e.type == 'bomb' || e.type == 'potion') {
       console.log(e);
       if (!e.sold && player.gold >= e.price) {
+        document.getElementById('buy').play();
         e.sold = true;
         player.gold -= e.price;
       }
@@ -884,6 +894,7 @@ function level() {
       level += 1;
       makeWorld(generateLevel(15 + level*bellCurve(4,6), 15 + level*bellCurve(4,6), level));
     } if (e.type == 'exit') {
+      document.getElementById('win').play();
       setTimeout(() => {
         tearDown();
         playVictoryScene();
@@ -1179,6 +1190,7 @@ function level() {
 }
 
 function playGameOverScene() {
+  document.getElementById('gameover').play();
   var scene_running = true;
   var gameover = document.getElementById('spr_gameover');
   var prevTime = performance.now();
