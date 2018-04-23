@@ -805,6 +805,7 @@ function level() {
         } else {
           if (g.die) {
             g.die();
+            document.getElementById('backattack').play();
           }
         }
       }

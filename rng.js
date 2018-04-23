@@ -81,9 +81,9 @@ function generateFirstRoom(width, height) {
   // 5 rounds of smoothing
   for (var i = 0; i < 5; i++) {
     var nextArr = [];
-    for (var y = 0; y < width; y++) {
+    for (var y = 0; y < height; y++) {
       nextArr.push([]);
-      for (var x = 0; x < height; x++) {
+      for (var x = 0; x < width; x++) {
         var nFloor = 0;
         var nWall = 0;
         for (var j = -1; j <= 1; j++) {
